@@ -1,4 +1,4 @@
-import graphql from './graphql.js/index.js';
+import graphql from 'https://raw.githubusercontent.com/CreatCodeBuild/deno-graphql/master/graphql.js';
 
 var schema = graphql.buildSchema(`
   type Query {
