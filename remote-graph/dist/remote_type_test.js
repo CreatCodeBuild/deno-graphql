@@ -1,11 +1,7 @@
-import {GraphQLResolveInfo, FieldNode} from "graphql";
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 const fs = require('fs').promises;
 const assert = require('assert');
-
-
-
-
 const data1 = {
     "fieldName": "books",
     "fieldNodes": [
@@ -150,43 +146,41 @@ const data1 = {
         }
     },
     "variableValues": {}
-}
-
-function compileRemoteQuery(info: GraphQLResolveInfo | any): string {
+};
+function compileRemoteQuery(info) {
     let tokens = [];
     tokens.push('{');
-    for(const fieldNode of info.fieldNodes) {
+    for (const fieldNode of info.fieldNodes) {
         const subTokens = compileFieldNode(fieldNode);
         tokens = tokens.concat(subTokens);
     }
     tokens.push('}');
     return tokens.join('');
 }
-
-function compileFieldNode(node: FieldNode): string[] {
+function compileFieldNode(node) {
     let tokens = [];
     const fieldName = node.name.value;
     tokens.push(fieldName);
-    if(!node.selectionSet) {
+    if (!node.selectionSet) {
         return tokens;
     }
     tokens.push('{');
-    for(let selectionNode of node.selectionSet.selections) {
+    for (let selectionNode of node.selectionSet.selections) {
         switch (selectionNode.kind) {
-        case 'Field':
-            const subTokens = compileFieldNode(selectionNode);
-            tokens = tokens.concat(subTokens);
-            break;
-        default:
-            throw new Error(`doesn't support ${selectionNode.kind} yet`);
+            case 'Field':
+                const subTokens = compileFieldNode(selectionNode);
+                tokens = tokens.concat(subTokens);
+                break;
+            default:
+                throw new Error(`doesn't support ${selectionNode.kind} yet`);
         }
-        tokens.push(',')
+        tokens.push(',');
     }
     tokens.push('}');
     return tokens;
 }
-
 async function Test() {
     assert.strictEqual(compileRemoteQuery(data1), `{books{title,}}`);
 }
 Test();
+//# sourceMappingURL=remote_type_test.js.map
