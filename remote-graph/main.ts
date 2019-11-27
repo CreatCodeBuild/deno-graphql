@@ -4,36 +4,17 @@ const fs = require('fs').promises;
 
 let source = `
     type Query {
-        demoField: DemoType
+        books: [Book]
     }
 
-    type DemoType @remote(source: "go") {
-        x: Int
+    type Book @remote(source: "go") {
+        title: String
     }
 
     directive @remote(source: String!) on OBJECT
 `
 
 let schema = buildSchema(source);
-
-async function DemoType() {
-
-    let ret = await fetch('http://localhost:8080/query', {
-        method: "POST",
-        body: JSON.stringify({
-            query: `{
-                demoField {
-                  x
-                }
-              }
-            `
-        })
-    })
-
-    // console.log(await ret.json());
-    let res = await ret.json();
-    return res.data.demoField
-}
 
 async function RemoteType(typeName: String) {
 
@@ -43,20 +24,25 @@ async function RemoteType(typeName: String) {
         'utf-8'
     );
 
-    let ret = await fetch('http://localhost:8080/query', {
+    let ret = await fetch('http://localhost:4000', {
         method: "POST",
         body: JSON.stringify({
             query: query
-        })
+        }),
+        headers: {
+            'content-type': 'application/json'
+        }
     })
-    let body = await ret.json();
+    let body = await ret.text();
+    body = JSON.parse(body);
     let schema = body.data;
     // parse current selection set
 
     // compose remote graphql query
 
     // return remote data
-    return () => {
+    return function(parent, args, info) {
+        console.log(JSON.stringify(info));
         console.log(arguments);
     }
 }
@@ -66,14 +52,10 @@ async function main() {
         // demoField: async () => {
         //     return await DemoType()
         // }
-        demoField: await RemoteType('DemoType')
+        books: await RemoteType('Book')
     }
 
-    graphql(schema, `{ demoField { x } }`, root)
-    .then((res) => {
-        console.log(res);
-    });
+    let res = await graphql(schema, `{ books { title } }`, root);
+    console.log(res);
 }
-main().then(()=>{
-
-});
+main();
