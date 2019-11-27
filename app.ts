@@ -1,15 +1,20 @@
-import graphql from 'https://raw.githubusercontent.com/CreatCodeBuild/deno-graphql/master/graphql.js';
+import graphql from './dist/graphql.js';
 
-var schema = graphql.buildSchema(`
-  type Query {
-    hello: String
-  }
-`);
+try {
+    var schema = graphql.buildSchema(`
+    type X {
+      hello:: String
+    }
+  `);
+} catch(e) {
+    console.error(e.message, e.locations);
+    Deno.exit(1);
+}
+
 
 var root = { 
   hello: () => 'Hello world!'
 };
 
-graphql.graphql(schema, '{ hello }', root).then((response) => {
-  console.log(response);
-});
+let x = await graphql.graphql(schema, `{hello}`, root)
+console.log(x)

@@ -1,0 +1,9 @@
+{
+    "compilerOptions": {
+        "target": "es2018",
+        "lib": ["es6"],
+        "module": "commonjs",
+        "outDir": "dist",
+        "sourceMap": true
+    }
+}

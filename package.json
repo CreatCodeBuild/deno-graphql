@@ -1,0 +1,16 @@
+{
+  "name": "deno-gql",
+  "version": "1.0.0",
+  "description": "Run GraphQL in Deno, Period\r ```\r deno app.ts\r ```",
+  "main": "graphql.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "graphql": "^14.5.8",
+    "webpack": "^4.41.2",
+    "webpack-cli": "^3.3.10"
+  }
+}
