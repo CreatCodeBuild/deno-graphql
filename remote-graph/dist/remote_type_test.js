@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const graphql_1 = require("graphql");
 const fs = require('fs').promises;
 const assert = require('assert');
 const data1 = {
@@ -181,6 +182,7 @@ function compileFieldNode(node) {
 }
 async function Test() {
     assert.strictEqual(compileRemoteQuery(data1), `{books{title,}}`);
+    assert.strictEqual(compileRemoteQuery(graphql_1.parse('{books{title,}}')), '{books{title,}}');
 }
 Test();
 //# sourceMappingURL=remote_type_test.js.map
