@@ -16,9 +16,10 @@ describe("CompileRemoteSelectionSet", async () => {
 	let source = `
 		type Query {
 			books(
-				arg1: Int,
-				arg2: CompositeInput,
+				arg1: Int
+				arg2: CompositeInput
 				arg3: Enum
+				arg4: [Enum]
 			): [Book]
 		}
 
@@ -161,6 +162,23 @@ describe("CompileRemoteSelectionSet", async () => {
 				schema,
 				`{ books(arg3: Y) { title } }`,
 				root
+			);
+			assert.strictEqual(res.errors, undefined);
+		});
+		it('test 12, enum list argument with variable', async () => {
+			let root = {
+				books: (parent, args, info: GraphQLResolveInfo) => {
+					assert.strictEqual(
+						CompileRemoteQuery(info, 'query', 'books'),
+						`query($enums:[Enum]){books(arg4:$enums,){title,}}`);
+				}
+			};
+			let res = await graphql(
+				schema,
+				`query ($enums: [Enum]) { books(arg4: $enums) { title } }`,
+				root,
+				null, // context
+				{enums:["X"]}
 			);
 			assert.strictEqual(res.errors, undefined);
 		});

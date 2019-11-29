@@ -6,9 +6,9 @@ let source = `
 type Query {
     countries(byName: String): [Country]
     me: MeOnGithub!
-    getAnimes(sort: Sort): Media
+    getAnimes(sort: [MediaSort]): Media
 }
-enum Sort {
+enum MediaSort {
     SCORE
     POPULARITY
 }
@@ -74,14 +74,14 @@ async function ResolverFactory() {
 async function f() {
     let res = await graphql(schema,
         `
-        query { 
+        query ($sort: MediaSort) { 
             # me { 
             #     login
             # }
             #countries(byName: "ina") {
             #    name
             #}
-            getAnimes(sort: SCORE) {
+            getAnimes(sort: [$sort]) {
                 id
                 isAdult
                 title {
@@ -91,7 +91,10 @@ async function f() {
             }           
         }
         `,
-        await ResolverFactory());
+        await ResolverFactory(),
+        null, // context
+        {"sort": "SCORE"}
+    );
     console.log(res.data);
     console.log(res.errors);
 }

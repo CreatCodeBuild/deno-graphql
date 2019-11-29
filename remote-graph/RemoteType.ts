@@ -3,7 +3,9 @@ import {
     FieldNode,
     SelectionSetNode,
     OperationTypeNode,
+    OperationDefinitionNode,
     ArgumentNode,
+    TypeNode,
     ValueNode,
     introspectionQuery,
     IntrospectionQuery
@@ -21,8 +23,9 @@ export function MapArgument(info: GraphQLResolveInfo, args: any): GraphQLResolve
     return newInfo;
 }
 
+type VariableValues = { [variableName: string]: any };
 export interface Transport {
-    do(remoteQuery: string)
+    do(remoteQuery: string, variables?: VariableValues)
     url: string
 }
 
@@ -36,11 +39,12 @@ export async function RemoteType(transport: Transport, operationName: OperationT
         throw new Error(`${remoteField} does not exits in remote schema at ${transport.url}`);
     }
 
-    return async function (args, ctx, info) {
+    return async function (args, ctx, info: GraphQLResolveInfo) {
 
         const remoteQuery = CompileRemoteQuery(info, operationName, remoteField);
         // do remote query
-        const response = await transport.do(remoteQuery)
+        console.log(remoteQuery, info.variableValues);
+        const response = await transport.do(remoteQuery, info.variableValues)
         return response.data[remoteField];
     }
 }
@@ -86,6 +90,9 @@ export function CompileRemoteQuery(info: GraphQLResolveInfo, operationName: Oper
     }
     let tokens = [];
     tokens.push(operationName);
+    // variables
+    tokens = tokens.concat(Array.from(compileOperationVariables(info.operation)));
+
     tokens.push('{');
     tokens.push(remoteField);
     // arguments
@@ -94,6 +101,35 @@ export function CompileRemoteQuery(info: GraphQLResolveInfo, operationName: Oper
     tokens = tokens.concat(CompileRemoteSelectionSet(info, separator));
     tokens.push('}');
     return tokens.join('');
+}
+
+function* compileOperationVariables(operation: OperationDefinitionNode) {
+    if(operation.variableDefinitions.length === 0) {
+        return;
+    }
+    yield '(';
+    for (let variableDefinition of operation.variableDefinitions) {
+        yield '$';
+        yield variableDefinition.variable.name.value;
+        yield ':';
+        yield* compileTypeNode(variableDefinition.type);
+    }
+    yield ')'
+}
+
+function* compileTypeNode(typeNode: TypeNode) {
+    switch (typeNode.kind) {
+        case 'ListType':
+            yield '[';
+            yield* compileTypeNode(typeNode.type);
+            yield ']';
+            break;
+        case 'NamedType':
+            yield typeNode.name.value;
+            break;
+        default:
+            throw new Error(`${typeNode.kind} is not supported yet`);
+    }
 }
 
 type ArgumentNodes = readonly ArgumentNode[];
@@ -122,6 +158,16 @@ function* compileValueNode(value: ValueNode) {
             yield value.value;
             yield '"';
             break;
+        case 'EnumValue':
+            yield value.value;
+            break;
+        case 'ListValue':
+            yield '['
+            for (let v of value.values) {
+                yield* compileValueNode(v);
+            }
+            yield ']'
+            break;
         case 'ObjectValue':
             yield '{';
             for (let field of value.fields) {
@@ -132,8 +178,9 @@ function* compileValueNode(value: ValueNode) {
             }
             yield '}';
             break;
-        case 'EnumValue':
-            yield value.value;
+        case 'Variable':
+            yield '$';
+            yield value.name.value;
             break;
         default:
             throw new Error(`${value.kind} is not supported yet`);
