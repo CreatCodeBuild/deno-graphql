@@ -1,9 +1,12 @@
 import {
-    GraphQLResolveInfo, 
+    GraphQLResolveInfo,
     FieldNode,
     GraphQLFieldResolver,
     SelectionSetNode,
-    OperationTypeNode
+    OperationTypeNode,
+    GraphQLFormattedError,
+    ArgumentNode,
+    IntValueNode
 } from "graphql";
 
 const fetch = require('node-fetch');
@@ -18,7 +21,7 @@ export function RemoteType(url: string, operationName: OperationTypeNode, remote
     // compose remote graphql query
 
     // return remote data
-    return async function(parent, args, info) {
+    return async function (parent, args, info) {
         const remoteQuery = CompileRemoteQuery(info, operationName, remoteField);
 
         // do remote query
@@ -31,44 +34,82 @@ export function RemoteType(url: string, operationName: OperationTypeNode, remote
                 query: remoteQuery
             })
         });
-        const body = await res.text();
-        return JSON.parse(body).data[remoteField];
+        const body = await res.json();
+        if (body.errors) {
+            throw new Error(JSON.stringify(body.errors));
+        }
+        return body.data[remoteField];
     }
 }
 
 type Separator = ' ' | ',';
 
-export function CompileRemoteQuery(info: GraphQLResolveInfo,  operationName: OperationTypeNode, remoteField: string, separator?: Separator) {
-    if(!separator) {
-        separator = ',';
+export function CompileRemoteQuery(info: GraphQLResolveInfo, operationName: OperationTypeNode, remoteField: string, separator?: Separator) {
+    if (info.fieldNodes.length !== 1) {
+        throw new Error(`info.fieldNodes.length === ${info.fieldNodes.length}`);
     }
-    return `${operationName}{${remoteField}${CompileRemoteSelectionSet(info, separator)}}`;
-} 
-
-export function CompileRemoteSelectionSet(info: GraphQLResolveInfo | any, separator?: Separator): string {
-    if(!separator) {
+    if (!separator) {
         separator = ',';
     }
     let tokens = [];
-    if(info.fieldNodes.length !== 1) {
-        throw new Error(`info.fieldNodes.length === ${info.fieldNodes.length}`);
-    }
+    tokens.push(operationName);
     tokens.push('{');
-    tokens = tokens.concat(compileRemoteSelectionSet(info.fieldNodes[0].selectionSet, separator));
+    tokens.push(remoteField);
+    // arguments
+    tokens = tokens.concat(Array.from(compileArguments(info.fieldNodes[0].arguments)));
+    // selection set
+    tokens = tokens.concat(CompileRemoteSelectionSet(info, separator));
     tokens.push('}');
     return tokens.join('');
 }
 
+type ArgumentNodes = readonly ArgumentNode[];
+function* compileArguments(args: ArgumentNodes) {
+    if (args.length === 0) {
+        return;
+    }
+    yield '(';
+    for (let arg of args) {
+        yield arg.name.value;
+        yield ':';
+        // switch on type
+        if (arg.value.kind === 'IntValue') {
+            yield arg.value.value;
+        } else if (arg.value.kind == 'StringValue') {
+            yield '"';
+            yield arg.value.value;
+            yield '"';
+        } else {
+            throw new Error(`${arg.value.kind} is not supported yet`);
+        }
+    }
+    yield ')';
+}
+
+export function CompileRemoteSelectionSet(info: GraphQLResolveInfo | any, separator?: Separator): string[] {
+    if (info.fieldNodes.length !== 1) {
+        throw new Error(`info.fieldNodes.length === ${info.fieldNodes.length}`);
+    }
+    if (!separator) {
+        separator = ',';
+    }
+    let tokens = [];
+    tokens.push('{');
+    tokens = tokens.concat(compileRemoteSelectionSet(info.fieldNodes[0].selectionSet, separator));
+    tokens.push('}');
+    return tokens;
+}
+
 function compileRemoteSelectionSet(selectionSet: SelectionSetNode, separator: Separator) {
     let tokens = [];
-    for(let selectionNode of selectionSet.selections) {
+    for (let selectionNode of selectionSet.selections) {
         switch (selectionNode.kind) {
-        case 'Field':
-            const subTokens = compileFieldNode(selectionNode, separator);
-            tokens = tokens.concat(subTokens);
-            break;
-        default:
-            throw new Error(`doesn't support ${selectionNode.kind} yet`);
+            case 'Field':
+                const subTokens = compileFieldNode(selectionNode, separator);
+                tokens = tokens.concat(subTokens);
+                break;
+            default:
+                throw new Error(`doesn't support ${selectionNode.kind} yet`);
         }
         tokens.push(separator);
     }
@@ -79,7 +120,7 @@ export function compileFieldNode(node: FieldNode, separator: Separator): string[
     let tokens = [];
     const fieldName = node.name.value;
     tokens.push(fieldName);
-    if(!node.selectionSet) {
+    if (!node.selectionSet) {
         return tokens;
     }
     tokens.push('{');

@@ -6,7 +6,8 @@ const typeDefs = gql`
     author: String
   }
   type Query {
-    getAllBooks: [Book]
+    getAllBooks: [Book!]!
+	getBooksBy(author: String!): [Book!]!
   }
 `;
 
@@ -26,9 +27,13 @@ const books = [
 const resolvers = {
 	Query: {
 		getAllBooks: () => {
-			console.log('service1');
 			return books
 		},
+		getBooksBy: (_0, args, _1) => {
+			return books.filter((book) => {
+				return book.author === args.author;
+			})
+		}
 	},
 };
 
