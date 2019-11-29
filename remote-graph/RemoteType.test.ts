@@ -208,7 +208,6 @@ describe('Integration Tests', async () => {
 				author: 'J.K. Rowling',
 			}
 		]);
-
 	});
 	after(async () => {
 		await server.stop();
