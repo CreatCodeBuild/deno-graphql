@@ -192,3 +192,4 @@ type User @remote(url: "github.com/graphql-api", entry: "Query.viewer") {
 3. Should work with `dataloader` seemlessly. This has to be done.
 4. `Mutation` has no semantic difference with `Query` so it's already supported. I need to think about how to support `Subscription`.
 5. Remote schema auto generation. Instead of copy & paste remote schema into your local. Maybe I should write a tool to generate schema language source from the introspected schema.
+6. Somebody please comes out a better name for this library.
