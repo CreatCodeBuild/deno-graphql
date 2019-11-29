@@ -34,6 +34,12 @@ describe("CompileRemoteSelectionSet", async () => {
 		input CompositeInput {
 			title: String
 			author: String
+			time: Date
+		}
+
+		input Date {
+			year: Int
+			month: Int
 		}
 	`;
 
@@ -115,13 +121,27 @@ describe("CompileRemoteSelectionSet", async () => {
 		it('test 9, composite arguments', async () => {
 			let root = {
 				books: (parent, args, info: GraphQLResolveInfo) => {
-					console.log(CompileRemoteQuery(info, 'query', 'books'));
 					assert.strictEqual(
 						CompileRemoteQuery(info, 'query', 'books'),
 						`query{books(arg1:1,arg2:{author:"x",title:"y",},){title,}}`);
 				}
 			};
 			let res = await graphql(schema, `{ books(arg1: 1, arg2: {author:"x",title:"y"}) { title } }`, root);
+			assert.strictEqual(res.errors, undefined);
+		});
+		it('test 10, layered composite arguments', async () => {
+			let root = {
+				books: (parent, args, info: GraphQLResolveInfo) => {
+					assert.strictEqual(
+						CompileRemoteQuery(info, 'query', 'books'),
+						`query{books(arg1:1,arg2:{author:"x",title:"y",time:{month:11,year:2019,},},){title,}}`);
+				}
+			};
+			let res = await graphql(
+				schema,
+				`{ books(arg1: 1, arg2: {author:"x",title:"y",time:{month:11,year:2019}}) { title } }`,
+				root
+			);
 			assert.strictEqual(res.errors, undefined);
 		});
 	});
