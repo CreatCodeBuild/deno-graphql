@@ -3,7 +3,7 @@
 # GraphQL Remote Type
 `RemoteType` is a library that helps you to execute remote GraphQL resolvers in a remote schema as if they are local and is build on top of `graphql.js`.
 
-In contract of Apollo Federation, it needs __zero modification__ of your local schema nor any modification of the remote schema.
+In contrast of Apollo Federation, it needs __zero modification__ of your local schema nor any modification of the remote schema.
 
 As a byproduct, the __zero-modification__ principle enables you to merge 3rd party schema, which you have no control, into your schema. Therefore, your frontend or mobile clients can treat in-house schema and 3rd party schema as one unified API.
 
