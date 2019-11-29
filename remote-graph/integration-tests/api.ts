@@ -17,32 +17,36 @@ type MeOnGithub {
 
 let schema = buildSchema(source);
 
-let root = {
-    countries: async function (args, ctx, info) {
-        const remoteResolver = RemoteType(
-            HTTP('https://countries.trevorblades.com/'),
-            `query`,
-            `countriesX`);
-        const remoteResult = await remoteResolver(args, ctx, MapArgument(info, {}));
-        if(Object.keys(args).length > 0) {
-            return remoteResult.filter((country) => {
-                return country.name.includes(args.byName);
-            });
-        }
-        return remoteResult;
-    },
-    me: RemoteType(
-        HTTP(
-            'https://graphql-explorer.githubapp.com/graphql/proxy',
-            {
-                cookie: '',
-                'X-CSRF-Token': ''
-            },
-            "include",
-        ),
+async function ResolverFactory() {
+
+    const countries = await RemoteType(
+        HTTP('https://countries.trevorblades.com/'),
         `query`,
-        `viewer`)
-};
+        `countriesX`);
+
+    return {
+        countries: async function (args, ctx, info) {
+            const remoteResult = await countries(args, ctx, MapArgument(info, {}));
+            if(Object.keys(args).length > 0) {
+                return remoteResult.filter((country) => {
+                    return country.name.includes(args.byName);
+                });
+            }
+            return remoteResult;
+        },
+        me: await RemoteType(
+            HTTP(
+                'https://graphql-explorer.githubapp.com/graphql/proxy',
+                {
+                    cookie: '',
+                    'X-CSRF-Token': ''
+                },
+                "include",
+            ),
+            `query`,
+            `viewer`)
+    };
+}
 
 async function f() {
     let res = await graphql(schema,
@@ -56,7 +60,7 @@ async function f() {
             }
         }
         `,
-        root);
+        await ResolverFactory());
     console.log(res.data);
     console.log(res.errors);
 }

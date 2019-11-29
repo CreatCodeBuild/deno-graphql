@@ -11,8 +11,8 @@ import {
 
 export function MapArgument(info: GraphQLResolveInfo, args: any): GraphQLResolveInfo {
     let newArgs = [];
-    for(let arg of info.fieldNodes[0].arguments) {
-        if(arg.name.value in args) {
+    for (let arg of info.fieldNodes[0].arguments) {
+        if (arg.name.value in args) {
             newArgs.push(arg);
         }
     }
@@ -26,40 +26,53 @@ export interface Transport {
     url: string
 }
 
-export function RemoteType(transport: Transport, operationName: OperationTypeNode, remoteField: string) {
+export async function RemoteType(transport: Transport, operationName: OperationTypeNode, remoteField: string) {
 
+    // load remote schema
+    const response2 = await transport.do(introspectionQuery);
+    const introspection: IntrospectionQuery = response2.data;
+    // check if remoteField is in remote Operation root type.
+    if (!validateRemoteField(introspection, operationName, remoteField)) {
+        throw new Error(`${remoteField} does not exits in remote schema at ${transport.url}`);
+    }
 
     return async function (args, ctx, info) {
-        // load remote schema
-        // don't need to load remote schema for validation in the prototype
-        const response2 = await transport.do(introspectionQuery);
-        const introspection: IntrospectionQuery = response2.data;
-        // check if remoteField is in remote Operation root type.
-        let found = false;
-        for(let type of introspection.__schema.types) {
-            if (type.name === 'Query') {
-                if(type.kind === 'OBJECT') {
-                    for(let field of type.fields) {
-                        if(field.name === remoteField) {
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            if(found) {
-                break;
-            }
-        }
-        if(!found) {
-            throw new Error(`${remoteField} does not exits in remote schema at ${transport.url}`);
-        }
 
         const remoteQuery = CompileRemoteQuery(info, operationName, remoteField);
         // do remote query
         const response = await transport.do(remoteQuery)
         return response.data[remoteField];
     }
+}
+
+type OperationType = 'Query' | 'Mutation' | 'Subscription';
+function validateRemoteField(introspection: IntrospectionQuery, operationName: OperationTypeNode, remoteField: string): boolean {
+    let found = false;
+    let operationType: OperationType = 'Query';
+    switch (operationName) {
+        case 'mutation':
+            operationType = 'Mutation';
+            break;
+        case 'subscription':
+            operationType = 'Subscription';
+            break;
+    }
+    for (let type of introspection.__schema.types) {
+        if (type.name === operationType) {
+            if (type.kind === 'OBJECT') {
+                for (let field of type.fields) {
+                    if (field.name === remoteField) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (found) {
+            break;
+        }
+    }
+    return found;
 }
 
 type Separator = ' ' | ',';
@@ -93,7 +106,7 @@ function* compileArguments(args: ArgumentNodes) {
         yield arg.name.value;
         yield ':';
         // switch on type
-        yield *compileValueNode(arg.value);
+        yield* compileValueNode(arg.value);
         yield ',';
     }
     yield ')';
@@ -111,7 +124,7 @@ function* compileValueNode(value: ValueNode) {
         for (let field of value.fields) {
             yield field.name.value;
             yield ':';
-            yield *compileValueNode(field.value);
+            yield* compileValueNode(field.value);
             yield ',';
         }
         yield '}';
