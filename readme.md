@@ -1,5 +1,1 @@
-# GraphQL Deno Port
-Run GraphQL in Deno, Period
-```
-deno app.ts
-```
+This repo contains many of my GraphQL projects, hacks and ideas.

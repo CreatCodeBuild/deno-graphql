@@ -7,7 +7,23 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch Program",
+            "name": "Mocha",
+            "program": "${workspaceFolder}/remote-graph/node_modules/mocha/bin/_mocha",
+            "args": [
+                "--timeout",
+                "999999",
+                "-r",
+                "ts-node/register",
+                "-g", "test 12",
+                "${workspaceFolder}/remote-graph/RemoteType.test.ts"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "main",
             "skipFiles": [
                 "<node_internals>/**"
             ],
