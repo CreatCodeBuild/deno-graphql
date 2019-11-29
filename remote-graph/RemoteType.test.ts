@@ -20,7 +20,16 @@ const log = console.log;
 describe("CompileRemoteSelectionSet", async () => {
 	let source = `
 		type Query {
-			books(arg1: Int, arg2: CompositeInput): [Book]
+			books(
+				arg1: Int,
+				arg2: CompositeInput,
+				arg3: Enum
+			): [Book]
+		}
+
+		enum Enum {
+			X
+			Y
 		}
 
 		type Book {
@@ -145,6 +154,21 @@ describe("CompileRemoteSelectionSet", async () => {
 			);
 			assert.strictEqual(res.errors, undefined);
 		});
+		it('test 11, enum argument', async () => {
+			let root = {
+				books: (parent, args, info: GraphQLResolveInfo) => {
+					assert.strictEqual(
+						CompileRemoteQuery(info, 'query', 'books'),
+						`query{books(arg3:Y,){title,}}`);
+				}
+			};
+			let res = await graphql(
+				schema,
+				`{ books(arg3: Y) { title } }`,
+				root
+			);
+			assert.strictEqual(res.errors, undefined);
+		});
 	});
 });
 
@@ -167,7 +191,7 @@ describe('Integration Tests', async () => {
 	const serverUp = await server.listen({ port: service1Port });
 	it("test 1", async () => {
 		let root = {
-			books: RemoteType(HTTP(serverUp.url), `query`, `getAllBooks`)
+			books: await RemoteType(HTTP(serverUp.url), `query`, `getAllBooks`)
 		};
 		let res = await graphql(schema, `{ books { author t:title } }`, root);
 		assert.strictEqual(res.errors, undefined);
@@ -185,7 +209,7 @@ describe('Integration Tests', async () => {
 	});
 	it("test 2, arguments", async () => {
 		let root = {
-			booksBy: RemoteType(HTTP(serverUp.url), `query`, `getBooksBy`)
+			booksBy: await RemoteType(HTTP(serverUp.url), `query`, `getBooksBy`)
 		};
 		let res = await graphql(schema, `{ booksBy(author:"J.K. Rowling") { author title } }`, root);
 		assert.strictEqual(res.errors, undefined);
@@ -199,7 +223,7 @@ describe('Integration Tests', async () => {
 	});
 	it("test 3, composite arguments", async () => {
 		let root = {
-			booksBy: RemoteType(HTTP(serverUp.url), `query`, `getBooksBy`)
+			booksBy: await RemoteType(HTTP(serverUp.url), `query`, `getBooksBy`)
 		};
 		let res = await graphql(schema, `{ booksBy(author:"J.K. Rowling") { author title } }`, root);
 		assert.strictEqual(res.errors, undefined);

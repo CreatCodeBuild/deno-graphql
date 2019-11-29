@@ -113,23 +113,30 @@ function* compileArguments(args: ArgumentNodes) {
 }
 
 function* compileValueNode(value: ValueNode) {
-    if (value.kind === 'IntValue') {
-        yield value.value;
-    } else if (value.kind == 'StringValue') {
-        yield '"';
-        yield value.value;
-        yield '"';
-    } else if (value.kind == 'ObjectValue') {
-        yield '{';
-        for (let field of value.fields) {
-            yield field.name.value;
-            yield ':';
-            yield* compileValueNode(field.value);
-            yield ',';
-        }
-        yield '}';
-    } else {
-        throw new Error(`${value.kind} is not supported yet`);
+    switch (value.kind) {
+        case 'IntValue':
+            yield value.value;
+            break;
+        case 'StringValue':
+            yield '"';
+            yield value.value;
+            yield '"';
+            break;
+        case 'ObjectValue':
+            yield '{';
+            for (let field of value.fields) {
+                yield field.name.value;
+                yield ':';
+                yield* compileValueNode(field.value);
+                yield ',';
+            }
+            yield '}';
+            break;
+        case 'EnumValue':
+            yield value.value;
+            break;
+        default:
+            throw new Error(`${value.kind} is not supported yet`);
     }
 }
 

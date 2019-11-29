@@ -6,6 +6,20 @@ let source = `
 type Query {
     countries(byName: String): [Country]
     me: MeOnGithub!
+    getAnimes(sort: Sort): Media
+}
+enum Sort {
+    SCORE
+    POPULARITY
+}
+type Media {
+    id: Int
+    isAdult: Boolean
+    title: MediaTitle
+}
+type MediaTitle {
+    romaji: String
+    native: String
 }
 type Country {
     name: String
@@ -22,29 +36,38 @@ async function ResolverFactory() {
     const countries = await RemoteType(
         HTTP('https://countries.trevorblades.com/'),
         `query`,
-        `countriesX`);
+        `countries`);
+
+    // const viewers = await RemoteType(
+    //     HTTP(
+    //         'https://graphql-explorer.githubapp.com/graphql/proxy',
+    //         {
+    //             cookie: '',
+    //             'X-CSRF-Token': ''
+    //         },
+    //         "include",
+    //     ),
+    //     `query`,
+    //     `viewer`);
+
+    const Media = await RemoteType(
+        HTTP('https://graphql.anilist.co/'),
+        'query',
+        'Media'
+    );
 
     return {
         countries: async function (args, ctx, info) {
             const remoteResult = await countries(args, ctx, MapArgument(info, {}));
-            if(Object.keys(args).length > 0) {
+            if (Object.keys(args).length > 0) {
                 return remoteResult.filter((country) => {
                     return country.name.includes(args.byName);
                 });
             }
             return remoteResult;
         },
-        me: await RemoteType(
-            HTTP(
-                'https://graphql-explorer.githubapp.com/graphql/proxy',
-                {
-                    cookie: '',
-                    'X-CSRF-Token': ''
-                },
-                "include",
-            ),
-            `query`,
-            `viewer`)
+        // me: viewers,
+        getAnimes: Media,
     };
 }
 
@@ -55,9 +78,17 @@ async function f() {
             # me { 
             #     login
             # }
-            countries(byName: "ina") {
-                name
-            }
+            #countries(byName: "ina") {
+            #    name
+            #}
+            getAnimes(sort: SCORE) {
+                id
+                isAdult
+                title {
+                  romaji
+                  native
+                }
+            }           
         }
         `,
         await ResolverFactory());
