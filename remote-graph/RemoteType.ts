@@ -1,16 +1,11 @@
 import {
     GraphQLResolveInfo,
     FieldNode,
-    GraphQLFieldResolver,
     SelectionSetNode,
     OperationTypeNode,
-    GraphQLFormattedError,
     ArgumentNode,
-    IntValueNode,
     ValueNode
 } from "graphql";
-
-const fetch = require('node-fetch');
 
 export function MapArgument(info: GraphQLResolveInfo, args: any): GraphQLResolveInfo {
     let newArgs = [];
@@ -24,7 +19,11 @@ export function MapArgument(info: GraphQLResolveInfo, args: any): GraphQLResolve
     return newInfo;
 }
 
-export function RemoteType(url: string, operationName: OperationTypeNode, remoteField: string) {
+export interface Transport {
+    do(remoteQuery: string)
+}
+
+export function RemoteType(transport: Transport, operationName: OperationTypeNode, remoteField: string) {
 
     // load remote schema
     // don't need to load remote schema for validation in the prototype
@@ -36,22 +35,9 @@ export function RemoteType(url: string, operationName: OperationTypeNode, remote
     // return remote data
     return async function (args, ctx, info) {
         const remoteQuery = CompileRemoteQuery(info, operationName, remoteField);
-
         // do remote query
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'content-type': 'application/json'
-            },
-            body: JSON.stringify({
-                query: remoteQuery
-            })
-        });
-        const body = await res.json();
-        if (body.errors) {
-            throw new Error(JSON.stringify(body.errors));
-        }
-        return body.data[remoteField];
+        const response = await transport.do(remoteQuery)
+        return response.data[remoteField];
     }
 }
 

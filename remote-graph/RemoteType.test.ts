@@ -9,6 +9,7 @@ import {
 	isType
 } from "graphql";
 import { CompileRemoteSelectionSet, CompileRemoteQuery, RemoteType } from "./RemoteType";
+import { HTTP } from "./Transport";
 
 const fetch = require("node-fetch");
 const fs = require("fs").promises;
@@ -166,7 +167,7 @@ describe('Integration Tests', async () => {
 	const serverUp = await server.listen({ port: service1Port });
 	it("test 1", async () => {
 		let root = {
-			books: RemoteType(serverUp.url, `query`, `getAllBooks`)
+			books: RemoteType(HTTP(serverUp.url), `query`, `getAllBooks`)
 		};
 		let res = await graphql(schema, `{ books { author t:title } }`, root);
 		assert.strictEqual(res.errors, undefined);
@@ -184,7 +185,7 @@ describe('Integration Tests', async () => {
 	});
 	it("test 2, arguments", async () => {
 		let root = {
-			booksBy: RemoteType(serverUp.url, `query`, `getBooksBy`)
+			booksBy: RemoteType(HTTP(serverUp.url), `query`, `getBooksBy`)
 		};
 		let res = await graphql(schema, `{ booksBy(author:"J.K. Rowling") { author title } }`, root);
 		assert.strictEqual(res.errors, undefined);
@@ -198,7 +199,7 @@ describe('Integration Tests', async () => {
 	});
 	it("test 3, composite arguments", async () => {
 		let root = {
-			booksBy: RemoteType(serverUp.url, `query`, `getBooksBy`)
+			booksBy: RemoteType(HTTP(serverUp.url), `query`, `getBooksBy`)
 		};
 		let res = await graphql(schema, `{ booksBy(author:"J.K. Rowling") { author title } }`, root);
 		assert.strictEqual(res.errors, undefined);
