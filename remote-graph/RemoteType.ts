@@ -6,7 +6,8 @@ import {
     OperationTypeNode,
     GraphQLFormattedError,
     ArgumentNode,
-    IntValueNode
+    IntValueNode,
+    ValueNode
 } from "graphql";
 
 const fetch = require('node-fetch');
@@ -73,17 +74,31 @@ function* compileArguments(args: ArgumentNodes) {
         yield arg.name.value;
         yield ':';
         // switch on type
-        if (arg.value.kind === 'IntValue') {
-            yield arg.value.value;
-        } else if (arg.value.kind == 'StringValue') {
-            yield '"';
-            yield arg.value.value;
-            yield '"';
-        } else {
-            throw new Error(`${arg.value.kind} is not supported yet`);
-        }
+        yield *compileValueNode(arg.value);
+        yield ',';
     }
     yield ')';
+}
+
+function* compileValueNode(value: ValueNode) {
+    if (value.kind === 'IntValue') {
+        yield value.value;
+    } else if (value.kind == 'StringValue') {
+        yield '"';
+        yield value.value;
+        yield '"';
+    } else if (value.kind == 'ObjectValue') {
+        yield '{';
+        for (let field of value.fields) {
+            yield field.name.value;
+            yield ':';
+            yield *compileValueNode(field.value);
+            yield ',';
+        }
+        yield '}';
+    } else {
+        throw new Error(`${value.kind} is not supported yet`);
+    }
 }
 
 export function CompileRemoteSelectionSet(info: GraphQLResolveInfo | any, separator?: Separator): string[] {

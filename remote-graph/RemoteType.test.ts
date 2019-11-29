@@ -19,7 +19,7 @@ const log = console.log;
 describe("CompileRemoteSelectionSet", async () => {
 	let source = `
 		type Query {
-			books(arg1: Int): [Book]
+			books(arg1: Int, arg2: CompositeInput): [Book]
 		}
 
 		type Book {
@@ -29,6 +29,11 @@ describe("CompileRemoteSelectionSet", async () => {
 
 		type Author {
 			name: String
+		}
+
+		input CompositeInput {
+			title: String
+			author: String
 		}
 	`;
 
@@ -64,8 +69,7 @@ describe("CompileRemoteSelectionSet", async () => {
 	it("test 4, 2 layers", async () => {
 		let root = {
 			books: (parent, args, info: GraphQLResolveInfo) => {
-				if (info.fieldNodes[0])
-					assert.strictEqual(CompileRemoteSelectionSet(info).join(''), `{author{name,},}`);
+				assert.strictEqual(CompileRemoteSelectionSet(info).join(''), `{author{name,},}`);
 			}
 		};
 		let res = await graphql(schema, `{ books { author { name } } }`, root);
@@ -74,8 +78,7 @@ describe("CompileRemoteSelectionSet", async () => {
 	it("test 5, 2 layers & custom separator", async () => {
 		let root = {
 			books: (parent, args, info: GraphQLResolveInfo) => {
-				if (info.fieldNodes[0])
-					assert.strictEqual(CompileRemoteSelectionSet(info, ' ').join(''), `{author{name } }`);
+				assert.strictEqual(CompileRemoteSelectionSet(info, ' ').join(''), `{author{name } }`);
 			}
 		};
 		let res = await graphql(schema, `{ books { author { name } } }`, root);
@@ -84,8 +87,7 @@ describe("CompileRemoteSelectionSet", async () => {
 	it("test 6, 2 layers & custom separator", async () => {
 		let root = {
 			books: (parent, args, info: GraphQLResolveInfo) => {
-				if (info.fieldNodes[0])
-					assert.strictEqual(CompileRemoteSelectionSet(info).join(''), `{author{name,},title,}`);
+				assert.strictEqual(CompileRemoteSelectionSet(info).join(''), `{author{name,},title,}`);
 			}
 		};
 		let res = await graphql(schema, `{ books { author { n:name } t:title } }`, root);
@@ -94,8 +96,7 @@ describe("CompileRemoteSelectionSet", async () => {
 	it("test 7, arguments", async () => {
 		let root = {
 			books: (parent, args, info: GraphQLResolveInfo) => {
-				if (info.fieldNodes[0])
-					assert.strictEqual(CompileRemoteSelectionSet(info).join(''), `{title,}`);
+				assert.strictEqual(CompileRemoteSelectionSet(info).join(''), `{title,}`);
 			}
 		};
 		let res = await graphql(schema, `{ books(arg1: 1) { title } }`, root);
@@ -105,11 +106,22 @@ describe("CompileRemoteSelectionSet", async () => {
 		it('test 8, arguments', async () => {
 			let root = {
 				books: (parent, args, info: GraphQLResolveInfo) => {
-					if (info.fieldNodes[0])
-						assert.strictEqual(CompileRemoteQuery(info, 'query', 'books'), `query{books(arg1:1){title,}}`);
+					assert.strictEqual(CompileRemoteQuery(info, 'query', 'books'), `query{books(arg1:1,){title,}}`);
 				}
 			};
 			let res = await graphql(schema, `{ books(arg1: 1) { title } }`, root);
+			assert.strictEqual(res.errors, undefined);
+		});
+		it('test 9, composite arguments', async () => {
+			let root = {
+				books: (parent, args, info: GraphQLResolveInfo) => {
+					console.log(CompileRemoteQuery(info, 'query', 'books'));
+					assert.strictEqual(
+						CompileRemoteQuery(info, 'query', 'books'),
+						`query{books(arg1:1,arg2:{author:"x",title:"y",},){title,}}`);
+				}
+			};
+			let res = await graphql(schema, `{ books(arg1: 1, arg2: {author:"x",title:"y"}) { title } }`, root);
 			assert.strictEqual(res.errors, undefined);
 		});
 	});
@@ -151,6 +163,20 @@ describe('Integration Tests', async () => {
 
 	});
 	it("test 2, arguments", async () => {
+		let root = {
+			booksBy: RemoteType(serverUp.url, `query`, `getBooksBy`)
+		};
+		let res = await graphql(schema, `{ booksBy(author:"J.K. Rowling") { author title } }`, root);
+		assert.strictEqual(res.errors, undefined);
+		assert.deepEqual(res.data.booksBy, [
+			{
+				title: 'Harry Potter and the Chamber of Secrets',
+				author: 'J.K. Rowling',
+			}
+		]);
+
+	});
+	it("test 3, composite arguments", async () => {
 		let root = {
 			booksBy: RemoteType(serverUp.url, `query`, `getBooksBy`)
 		};
