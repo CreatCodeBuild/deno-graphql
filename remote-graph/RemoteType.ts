@@ -4,7 +4,9 @@ import {
     SelectionSetNode,
     OperationTypeNode,
     ArgumentNode,
-    ValueNode
+    ValueNode,
+    introspectionQuery,
+    IntrospectionQuery
 } from "graphql";
 
 export function MapArgument(info: GraphQLResolveInfo, args: any): GraphQLResolveInfo {
@@ -21,19 +23,38 @@ export function MapArgument(info: GraphQLResolveInfo, args: any): GraphQLResolve
 
 export interface Transport {
     do(remoteQuery: string)
+    url: string
 }
 
 export function RemoteType(transport: Transport, operationName: OperationTypeNode, remoteField: string) {
 
-    // load remote schema
-    // don't need to load remote schema for validation in the prototype
 
-    // parse current selection set
-
-    // compose remote graphql query
-
-    // return remote data
     return async function (args, ctx, info) {
+        // load remote schema
+        // don't need to load remote schema for validation in the prototype
+        const response2 = await transport.do(introspectionQuery);
+        const introspection: IntrospectionQuery = response2.data;
+        // check if remoteField is in remote Operation root type.
+        let found = false;
+        for(let type of introspection.__schema.types) {
+            if (type.name === 'Query') {
+                if(type.kind === 'OBJECT') {
+                    for(let field of type.fields) {
+                        if(field.name === remoteField) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if(found) {
+                break;
+            }
+        }
+        if(!found) {
+            throw new Error(`${remoteField} does not exits in remote schema at ${transport.url}`);
+        }
+
         const remoteQuery = CompileRemoteQuery(info, operationName, remoteField);
         // do remote query
         const response = await transport.do(remoteQuery)

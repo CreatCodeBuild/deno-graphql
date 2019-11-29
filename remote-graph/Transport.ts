@@ -25,6 +25,7 @@ export function HTTP(url: string, headers?: any, credentials?: string): Transpor
                 throw new Error(JSON.stringify(body.errors));
             }
             return body;
-        }
+        },
+        url: url,
     }
 }

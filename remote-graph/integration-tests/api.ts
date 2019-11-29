@@ -22,7 +22,7 @@ let root = {
         const remoteResolver = RemoteType(
             HTTP('https://countries.trevorblades.com/'),
             `query`,
-            `countries`);
+            `countriesX`);
         const remoteResult = await remoteResolver(args, ctx, MapArgument(info, {}));
         if(Object.keys(args).length > 0) {
             return remoteResult.filter((country) => {
@@ -48,9 +48,9 @@ async function f() {
     let res = await graphql(schema,
         `
         query { 
-            me { 
-                login
-            }
+            # me { 
+            #     login
+            # }
             countries(byName: "ina") {
                 name
             }
