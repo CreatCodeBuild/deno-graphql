@@ -1,12 +1,7 @@
 import {
 	GraphQLResolveInfo,
-	FieldNode,
-	parse,
-	DocumentNode,
 	graphql,
 	buildSchema,
-	IntrospectionQuery,
-	isType
 } from "graphql";
 import { CompileRemoteSelectionSet, CompileRemoteQuery, RemoteType } from "./RemoteType";
 import { HTTP } from "./Transport";
