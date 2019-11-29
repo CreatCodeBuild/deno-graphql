@@ -12,6 +12,18 @@ import {
 
 const fetch = require('node-fetch');
 
+export function MapArgument(info: GraphQLResolveInfo, args: any): GraphQLResolveInfo {
+    let newArgs = [];
+    for(let arg of info.fieldNodes[0].arguments) {
+        if(arg.name.value in args) {
+            newArgs.push(arg);
+        }
+    }
+    const newInfo = Object.assign(Object.create(null), info);
+    newInfo.fieldNodes[0].arguments = newArgs;
+    return newInfo;
+}
+
 export function RemoteType(url: string, operationName: OperationTypeNode, remoteField: string) {
 
     // load remote schema
@@ -22,7 +34,7 @@ export function RemoteType(url: string, operationName: OperationTypeNode, remote
     // compose remote graphql query
 
     // return remote data
-    return async function (parent, args, info) {
+    return async function (args, ctx, info) {
         const remoteQuery = CompileRemoteQuery(info, operationName, remoteField);
 
         // do remote query
