@@ -3,7 +3,7 @@ import {
 	graphql,
 	buildSchema,
 } from "graphql";
-import { CompileRemoteSelectionSet, CompileRemoteQuery, RemoteType } from "./RemoteType";
+import { CompileRemoteSelectionSet, CompileRemoteQuery, CompileRemoteQueries, RemoteType } from "./RemoteType";
 import { HTTP } from "./Transport";
 
 const fetch = require("node-fetch");
@@ -12,7 +12,7 @@ const fs = require("fs").promises;
 const assert = require("assert");
 
 const log = console.log;
-describe("CompileRemoteSelectionSet", async () => {
+describe("Unit Tests", async () => {
 	let source = `
 		type Query {
 			books(
@@ -51,69 +51,86 @@ describe("CompileRemoteSelectionSet", async () => {
 
 	let schema = buildSchema(source);
 
-	it("test 1, basic", async () => {
-		let root = {
-			books: (parent, args, info) => {
-				assert.strictEqual(CompileRemoteSelectionSet(info).join(''), `{title,}`);
-			}
-		};
-		let res = await graphql(schema, `{ books { title } }`, root);
-		assert.strictEqual(res.errors, undefined);
+	describe("CompileRemoteSelectionSet", async () => {
+		it("test 1, basic", async () => {
+			let root = {
+				books: (parent, args, info) => {
+					assert.strictEqual(
+						CompileRemoteSelectionSet(info, 'books', ',').join(''),
+						`books{title,}`);
+				}
+			};
+			let res = await graphql(schema, `{ books { title } }`, root);
+			assert.strictEqual(res.errors, undefined);
+		});
+		it("test 2, alias", async () => {
+			let root = {
+				books: (parent, args, info) => {
+					assert.strictEqual(
+						CompileRemoteSelectionSet(info, 'books', ',').join(''),
+						`books{title,}`);
+				}
+			};
+			let res = await graphql(schema, `{ books { x:title } }`, root);
+			assert.strictEqual(res.errors, undefined);
+		});
+		it("test 3, basic & alias", async () => {
+			let root = {
+				books: (parent, args, info) => {
+					assert.strictEqual(
+						CompileRemoteSelectionSet(info, 'books', ',').join(''),
+						`books{title,title,}`);
+				}
+			};
+			let res = await graphql(schema, `{ books { x:title title } }`, root);
+			assert.strictEqual(res.errors, undefined);
+		});
+		it("test 4, 2 layers", async () => {
+			let root = {
+				books: (parent, args, info: GraphQLResolveInfo) => {
+					assert.strictEqual(
+						CompileRemoteSelectionSet(info, 'books', ',').join(''),
+						`books{author{name,},}`);
+				}
+			};
+			let res = await graphql(schema, `{ books { author { name } } }`, root);
+			assert.strictEqual(res.errors, undefined);
+		});
+		it("test 5, 2 layers & custom separator", async () => {
+			let root = {
+				books: (parent, args, info: GraphQLResolveInfo) => {
+					assert.strictEqual(
+						CompileRemoteSelectionSet(info, 'books', ' ').join(''),
+						`books{author{name } }`);
+				}
+			};
+			let res = await graphql(schema, `{ books { author { name } } }`, root);
+			assert.strictEqual(res.errors, undefined);
+		});
+		it("test 6, 2 layers & custom separator", async () => {
+			let root = {
+				books: (parent, args, info: GraphQLResolveInfo) => {
+					assert.strictEqual(
+						CompileRemoteSelectionSet(info, 'books', ',').join(''),
+						`books{author{name,},title,}`);
+				}
+			};
+			let res = await graphql(schema, `{ books { author { n:name } t:title } }`, root);
+			assert.strictEqual(res.errors, undefined);
+		});
+		it("test 7, arguments", async () => {
+			let root = {
+				books: (parent, args, info: GraphQLResolveInfo) => {
+					assert.strictEqual(
+						CompileRemoteSelectionSet(info, 'books', ',').join(''), 
+						`books(arg1:1,){title,}`);
+				}
+			};
+			let res = await graphql(schema, `{ books(arg1: 1) { title } }`, root);
+			assert.strictEqual(res.errors, undefined);
+		});
 	});
-	it("test 2, alias", async () => {
-		let root = {
-			books: (parent, args, info) => {
-				assert.strictEqual(CompileRemoteSelectionSet(info).join(''), `{title,}`);
-			}
-		};
-		let res = await graphql(schema, `{ books { x:title } }`, root);
-		assert.strictEqual(res.errors, undefined);
-	});
-	it("test 3, basic & alias", async () => {
-		let root = {
-			books: (parent, args, info) => {
-				assert.strictEqual(CompileRemoteSelectionSet(info).join(''), `{title,title,}`);
-			}
-		};
-		let res = await graphql(schema, `{ books { x:title title } }`, root);
-		assert.strictEqual(res.errors, undefined);
-	});
-	it("test 4, 2 layers", async () => {
-		let root = {
-			books: (parent, args, info: GraphQLResolveInfo) => {
-				assert.strictEqual(CompileRemoteSelectionSet(info).join(''), `{author{name,},}`);
-			}
-		};
-		let res = await graphql(schema, `{ books { author { name } } }`, root);
-		assert.strictEqual(res.errors, undefined);
-	});
-	it("test 5, 2 layers & custom separator", async () => {
-		let root = {
-			books: (parent, args, info: GraphQLResolveInfo) => {
-				assert.strictEqual(CompileRemoteSelectionSet(info, ' ').join(''), `{author{name } }`);
-			}
-		};
-		let res = await graphql(schema, `{ books { author { name } } }`, root);
-		assert.strictEqual(res.errors, undefined);
-	});
-	it("test 6, 2 layers & custom separator", async () => {
-		let root = {
-			books: (parent, args, info: GraphQLResolveInfo) => {
-				assert.strictEqual(CompileRemoteSelectionSet(info).join(''), `{author{name,},title,}`);
-			}
-		};
-		let res = await graphql(schema, `{ books { author { n:name } t:title } }`, root);
-		assert.strictEqual(res.errors, undefined);
-	});
-	it("test 7, arguments", async () => {
-		let root = {
-			books: (parent, args, info: GraphQLResolveInfo) => {
-				assert.strictEqual(CompileRemoteSelectionSet(info).join(''), `{title,}`);
-			}
-		};
-		let res = await graphql(schema, `{ books(arg1: 1) { title } }`, root);
-		assert.strictEqual(res.errors, undefined);
-	});
+
 	describe('CompileRemoteQuery', () => {
 		it('test 8, arguments', async () => {
 			let root = {
@@ -178,8 +195,94 @@ describe("CompileRemoteSelectionSet", async () => {
 				`query ($enums: [Enum]) { books(arg4: $enums) { title } }`,
 				root,
 				null, // context
-				{enums:["X"]}
+				{ enums: ["X"] }
 			);
+			assert.strictEqual(res.errors, undefined);
+		});
+	});
+	describe('CompileRemoteQueries', async()=>{
+		it('test 1', async () => {
+			let root = {
+				books: (parent, args, info: GraphQLResolveInfo) => {
+					assert.strictEqual(
+						CompileRemoteQueries({ 'books': [info, info] }, 'query'),
+						`query{books0:books{title,},books1:books{title,},}`);
+				}
+			};
+			let res = await graphql(
+				schema,
+				`query { books { title } }`,
+				root
+			);
+			assert.strictEqual(res.errors, undefined);
+		});
+		it('test 2, arguments', async () => {
+			let root = {
+				books: (parent, args, info: GraphQLResolveInfo) => {
+					assert.strictEqual(
+						CompileRemoteQueries({ 'books': [info, info] }, 'query'),
+						`query{books0:books(arg1:1,){title,},books1:books(arg1:1,){title,},}`);
+				}
+			};
+			let res = await graphql(
+				schema,
+				`query { books(arg1:1) { title } }`,
+				root
+			);
+			assert.strictEqual(res.errors, undefined);
+		});
+		xit('test 3, variables', async () => {
+			let root = {
+				books: (parent, args, info: GraphQLResolveInfo) => {
+					assert.strictEqual(
+						CompileRemoteQueries({ 'books': [info, info] }, 'query'),
+						`query{books0:books(arg1:1,){title,},books1:books(arg1:1,){title,},}`);
+				}
+			};
+			let res = await graphql(
+				schema,
+				`query { books(arg1:1) { title } }`,
+				root
+			);
+			assert.strictEqual(res.errors, undefined);
+		});
+	});
+
+	describe('Working with Dataloader', async () => {
+
+		function LocalTransport() {
+
+			const schema = buildSchema(`
+				type Query {
+					remoteBooks: [Book]
+				}
+				type Book {
+					title: String
+				}
+			`);
+
+			return {
+				do: async (remoteQuery: string, variables) => {
+					return await graphql(schema, remoteQuery, {
+						remotebBooks: [{
+							title: "remote book 1"
+						}]
+					});
+				},
+				url: "local"
+			}
+		}
+
+		it("test 1", async () => {
+			let root = {
+				books: await RemoteType(LocalTransport(), 'query', 'remoteBooks')
+			};
+			let res = await graphql(schema,
+				`{ 
+					b1: books { title }
+					b2: books { title } 
+				}`,
+				root);
 			assert.strictEqual(res.errors, undefined);
 		});
 	});
@@ -247,6 +350,7 @@ describe('Integration Tests', async () => {
 			}
 		]);
 	});
+
 	after(async () => {
 		await server.stop();
 	});

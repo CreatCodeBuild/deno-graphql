@@ -88,6 +88,14 @@ async function f() {
                   romaji
                   native
                 }
+            }
+            result2: getAnimes(sort: [$sort]) {
+                id
+                isAdult
+                title {
+                  romaji
+                  native
+                }
             }           
         }
         `,
