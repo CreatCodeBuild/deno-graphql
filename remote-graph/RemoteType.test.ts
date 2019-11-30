@@ -122,7 +122,7 @@ describe("Unit Tests", async () => {
 			let root = {
 				books: (parent, args, info: GraphQLResolveInfo) => {
 					assert.strictEqual(
-						CompileRemoteSelectionSet(info, 'books', ',').join(''), 
+						CompileRemoteSelectionSet(info, 'books', ',').join(''),
 						`books(arg1:1,){title,}`);
 				}
 			};
@@ -200,7 +200,7 @@ describe("Unit Tests", async () => {
 			assert.strictEqual(res.errors, undefined);
 		});
 	});
-	describe('CompileRemoteQueries', async()=>{
+	describe('CompileRemoteQueries', async () => {
 		it('test 1', async () => {
 			let root = {
 				books: (parent, args, info: GraphQLResolveInfo) => {
@@ -264,7 +264,7 @@ describe("Unit Tests", async () => {
 			return {
 				do: async (remoteQuery: string, variables) => {
 					return await graphql(schema, remoteQuery, {
-						remotebBooks: [{
+						remoteBooks: [{
 							title: "remote book 1"
 						}]
 					});
@@ -275,6 +275,7 @@ describe("Unit Tests", async () => {
 
 		it("test 1", async () => {
 			let root = {
+				// todo: implement batched RemoteType
 				books: await RemoteType(LocalTransport(), 'query', 'remoteBooks')
 			};
 			let res = await graphql(schema,
@@ -284,6 +285,14 @@ describe("Unit Tests", async () => {
 				}`,
 				root);
 			assert.strictEqual(res.errors, undefined);
+			assert.deepEqual(res.data, {
+				b1: [{
+					title: "remote book 1"
+				}],
+				b2: [{
+					title: "remote book 1"
+				}]
+			});
 		});
 	});
 });
