@@ -5,11 +5,8 @@ import {
     IntrospectionQuery
 } from "graphql";
 export { CompileRemoteQueries } from './BatchCompile';
-export { CompileRemoteSelectionSet } from './Compile';
-import { 
-    CompileRemoteSelectionSet,
-    compileOperationVariables
-} from './Compile';
+export { CompileRemoteSelectionSet, CompileRemoteQuery } from './Compile';
+import { CompileRemoteQuery} from './Compile';
 
 export function MapArgument(info: GraphQLResolveInfo, args: any): GraphQLResolveInfo {
     let newArgs = [];
@@ -76,25 +73,4 @@ function validateRemoteField(introspection: IntrospectionQuery, operationName: O
         }
     }
     return found;
-}
-
-type Separator = ' ' | ',';
-
-export function CompileRemoteQuery(info: GraphQLResolveInfo, operationName: OperationTypeNode, remoteField: string, separator?: Separator) {
-    if (info.fieldNodes.length !== 1) {
-        throw new Error(`info.fieldNodes.length === ${info.fieldNodes.length}`);
-    }
-    if (!separator) {
-        separator = ',';
-    }
-    let tokens = [];
-    tokens.push(operationName);
-    // variables
-    tokens = tokens.concat(Array.from(compileOperationVariables(info.operation)));
-
-    tokens.push('{');
-    // selection set
-    tokens = tokens.concat(CompileRemoteSelectionSet(info, remoteField, separator));
-    tokens.push('}');
-    return tokens.join('');
 }

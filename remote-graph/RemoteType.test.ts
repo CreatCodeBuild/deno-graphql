@@ -231,17 +231,17 @@ describe("Unit Tests", async () => {
 			);
 			assert.strictEqual(res.errors, undefined);
 		});
-		xit('test 3, variables', async () => {
+		it('test 3, variables', async () => {
 			let root = {
 				books: (parent, args, info: GraphQLResolveInfo) => {
 					assert.strictEqual(
 						CompileRemoteQueries({ 'books': [info, info] }, 'query'),
-						`query{books0:books(arg1:1,){title,},books1:books(arg1:1,){title,},}`);
+						`query($a:Int){books0:books(arg1:$a,){title,},books1:books(arg1:$a,){title,},}`);
 				}
 			};
 			let res = await graphql(
 				schema,
-				`query { books(arg1:1) { title } }`,
+				`query($a:Int){ books(arg1:$a) { title } }`,
 				root
 			);
 			assert.strictEqual(res.errors, undefined);

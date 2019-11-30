@@ -4,7 +4,8 @@ import {
     OperationDefinitionNode,
 } from "graphql";
 import {
-    CompileRemoteSelectionSet
+    CompileRemoteSelectionSet,
+    compileTypeNode
 } from './Compile';
 
 type Separator = ' ' | ',';
@@ -18,7 +19,13 @@ export function CompileRemoteQueries(infos: Infos, operationName: OperationTypeN
 
 function* compileRemoteQueries(infos: Infos, operationName: OperationTypeNode, separator: Separator) {
     yield operationName;
-    // yield *compileOperationsVariables(infos.map( info => info.operation ))
+    const operations = [];
+    for (let [remoteField, infosOfTheSameEntry] of Object.entries(infos)) {
+        for(let info of infosOfTheSameEntry) {
+            operations.push(info.operation);
+        }
+    }
+    yield *compileOperationsVariables(operations);
     yield '{';
     for (let [remoteField, infosOfTheSameEntry] of Object.entries(infos)) {
         for(let [i, info] of Object.entries(infosOfTheSameEntry)) {
@@ -30,18 +37,33 @@ function* compileRemoteQueries(infos: Infos, operationName: OperationTypeNode, s
     yield '}';
 }
 
-// function* compileOperationsVariables(operations: OperationDefinitionNode[]) {
-//     if(operations.length === 0) {
-//         return;
-//     }
-//     yield '(';
-//     for(let op of operations) {
-//         for (let variableDefinition of op.variableDefinitions) {
-//             yield '$';
-//             yield variableDefinition.variable.name.value;
-//             yield ':';
-//             yield* compileTypeNode(variableDefinition.type);
-//         }   
-//     }
-//     yield ')';
-// }
+function* compileOperationsVariables(operations: OperationDefinitionNode[]) {
+    if(operations.length === 0) {
+        return;
+    }
+    let noVars = true;
+    for(let op of operations) {
+        if(op.variableDefinitions.length > 0) {
+            noVars = false;
+            break;
+        }
+    }
+    if(noVars) {
+        return;
+    }
+    const variableNames = {};
+    yield '(';
+    for(let op of operations) {
+        for (let variableDefinition of op.variableDefinitions) {
+            if(variableDefinition.variable.name.value in variableNames) {
+                break;
+            }
+            variableNames[variableDefinition.variable.name.value] = null;
+            yield '$';
+            yield variableDefinition.variable.name.value;
+            yield ':';
+            yield* compileTypeNode(variableDefinition.type);
+        }
+    }
+    yield ')';
+}

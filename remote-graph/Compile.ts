@@ -1,4 +1,5 @@
 import {
+    OperationTypeNode,
     GraphQLResolveInfo,
     FieldNode,
     SelectionSetNode,
@@ -9,6 +10,25 @@ import {
 } from "graphql";
 
 type Separator = ' ' | ',';
+
+export function CompileRemoteQuery(info: GraphQLResolveInfo, operationName: OperationTypeNode, remoteField: string, separator?: Separator) {
+    if (info.fieldNodes.length !== 1) {
+        throw new Error(`info.fieldNodes.length === ${info.fieldNodes.length}`);
+    }
+    if (!separator) {
+        separator = ',';
+    }
+    let tokens = [];
+    tokens.push(operationName);
+    // variables
+    tokens = tokens.concat(Array.from(compileOperationVariables(info.operation)));
+
+    tokens.push('{');
+    // selection set
+    tokens = tokens.concat(CompileRemoteSelectionSet(info, remoteField, separator));
+    tokens.push('}');
+    return tokens.join('');
+}
 
 export function CompileRemoteSelectionSet(info: GraphQLResolveInfo, remoteField: string, separator: Separator): string[] {
     let tokens = [];
