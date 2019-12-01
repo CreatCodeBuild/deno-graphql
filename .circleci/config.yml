@@ -18,3 +18,9 @@ jobs:
       - run: yarn install
       # run tests!
       - run: $(npm bin)/mocha -r ts-node/register .\RemoteType.test.ts
+
+workflows:
+  version: 2
+  remote-graph:
+    jobs:
+      - remote-graph
