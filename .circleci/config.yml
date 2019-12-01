@@ -17,7 +17,7 @@ jobs:
       # Download and cache dependencies
       - run: cd remote-graph && npm install
       # run tests!
-      - run: cd remote-graph && $(npm bin)/mocha -r ts-node/register .\RemoteType.test.ts
+      - run: cd remote-graph && $(npm bin)/mocha -r ts-node/register ./RemoteType.test.ts
 
 workflows:
   version: 2
