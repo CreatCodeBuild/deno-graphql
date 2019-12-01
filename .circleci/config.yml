@@ -9,15 +9,15 @@ jobs:
       # specify the version you desire here
       - image: circleci/node:latest
 
-    working_directory: ~/repo/remote-graph
+    working_directory: ~/repo/
 
     steps:
       - checkout
 
       # Download and cache dependencies
-      - run: npm install
+      - run: cd remote-graph && npm install
       # run tests!
-      - run: $(npm bin)/mocha -r ts-node/register .\RemoteType.test.ts
+      - run: cd remote-graph && $(npm bin)/mocha -r ts-node/register .\RemoteType.test.ts
 
 workflows:
   version: 2
