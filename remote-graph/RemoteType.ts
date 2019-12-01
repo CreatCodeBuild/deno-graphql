@@ -40,16 +40,16 @@ export async function BatchedRemoteType(transport: Transport, operationName: Ope
         throw new Error(`${remoteField} does not exits in remote schema at ${transport.url}`);
     }
 
-    type resolverSignature = {args, ctx, info: GraphQLResolveInfo};
+    type resolverSignature = { args, ctx, info: GraphQLResolveInfo };
 
     const loader = new DataLoader(async (resolves: resolverSignature[]) => {
-        
+
         let infos = [];
-        for(let resovlerParams of resolves) {
+        for (let resovlerParams of resolves) {
             infos.push(resovlerParams.info);
         }
 
-        const remoteQuery = CompileRemoteQueries({[remoteField]: infos}, operationName, ',')
+        const remoteQuery = CompileRemoteQueries({ [remoteField]: infos }, operationName, ',')
 
         // do transport
         // each info has the same variableValues because they belong to the same query document.
@@ -60,7 +60,7 @@ export async function BatchedRemoteType(transport: Transport, operationName: Ope
     })
 
     return async function (args, ctx, info: GraphQLResolveInfo) {
-        return loader.load({args, ctx, info});
+        return loader.load({ args, ctx, info });
     }
 }
 

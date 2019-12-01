@@ -256,6 +256,9 @@ describe("Unit Tests", async () => {
 
 	describe('Working with Dataloader', async () => {
 
+		// introspection + batched queries
+		let transportCanOnlyBeCalledTwice = 0;
+
 		function LocalTransport() {
 
 			const schema = buildSchema(`
@@ -269,6 +272,7 @@ describe("Unit Tests", async () => {
 
 			return {
 				do: async (remoteQuery: string, variables) => {
+					transportCanOnlyBeCalledTwice++;
 					return await graphql(schema, remoteQuery, {
 						remoteBooks: (args) => {
 							return [{
@@ -293,6 +297,7 @@ describe("Unit Tests", async () => {
 					b3: books(arg1:3) { title }
 				}`,
 				root);
+			assert.strictEqual(transportCanOnlyBeCalledTwice, 2);
 			assert.strictEqual(res.errors, undefined);
 			assert.deepEqual(res.data, {
 				b1: [{
