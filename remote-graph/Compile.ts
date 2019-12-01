@@ -7,9 +7,17 @@ import {
     ValueNode,
     ArgumentNode,
     OperationDefinitionNode,
+    FragmentSpreadNode,
+    FragmentDefinitionNode,
 } from "graphql";
 
 type Separator = ' ' | ',';
+
+interface Meta {
+    readonly info: GraphQLResolveInfo
+    readonly separator: Separator
+    usedFragments: Set<FragmentDefinitionNode>
+}
 
 export function CompileRemoteQuery(info: GraphQLResolveInfo, operationName: OperationTypeNode, remoteField: string, separator?: Separator) {
     if (info.fieldNodes.length !== 1) {
@@ -25,12 +33,29 @@ export function CompileRemoteQuery(info: GraphQLResolveInfo, operationName: Oper
 
     tokens.push('{');
     // selection set
-    tokens = tokens.concat(CompileRemoteSelectionSet(info, remoteField, separator));
+    const usedFragments = new Set<FragmentDefinitionNode>();
+    const meta = {info, separator, usedFragments};
+    tokens = tokens.concat(CompileRemoteSelectionSet(info, remoteField, meta));
     tokens.push('}');
+    // fragments
+    for(let fragment of usedFragments) {
+        tokens = tokens.concat(Array.from(compileFragmentDefinitionNode(fragment, meta)))
+    }
     return tokens.join('');
 }
 
-export function CompileRemoteSelectionSet(info: GraphQLResolveInfo, remoteField: string, separator: Separator): string[] {
+function* compileFragmentDefinitionNode(fragment: FragmentDefinitionNode, meta: Meta) {
+    yield 'fragment';
+    yield meta.separator;
+    yield fragment.name.value;
+    yield meta.separator;
+    yield 'on';
+    yield meta.separator;
+    yield fragment.typeCondition.name.value;
+    yield* compileRemoteSelectionSet(fragment.selectionSet, meta);
+}
+
+export function CompileRemoteSelectionSet(info: GraphQLResolveInfo, remoteField: string, meta: Meta): string[] {
     let tokens = [];
     tokens.push(remoteField);
     // arguments
@@ -38,54 +63,54 @@ export function CompileRemoteSelectionSet(info: GraphQLResolveInfo, remoteField:
     if (info.fieldNodes.length !== 1) {
         throw new Error(`info.fieldNodes.length === ${info.fieldNodes.length}`);
     }
-    tokens.push('{');
-    tokens = tokens.concat(compileRemoteSelectionSet(info.fieldNodes[0].selectionSet, separator));
-    tokens.push('}');
+    tokens = tokens.concat(
+        Array.from(compileRemoteSelectionSet(info.fieldNodes[0].selectionSet, meta))
+    );
     return tokens;
 }
 
 
-export function compileRemoteSelectionSet(selectionSet: SelectionSetNode, separator: Separator) {
-    let tokens = [];
+export function* compileRemoteSelectionSet(
+    selectionSet: SelectionSetNode,
+    meta: Meta
+) {
+    if(selectionSet.selections.length === 0) {
+        return;
+    }
+    yield '{';
     for (let selectionNode of selectionSet.selections) {
         switch (selectionNode.kind) {
             case 'Field':
-                const subTokens = compileFieldNode(selectionNode, separator);
-                tokens = tokens.concat(subTokens);
+                yield* compileFieldNode(selectionNode, meta);
+                break;
+            case 'FragmentSpread':
+                // todo
+                yield* compileFragmentSpread(selectionNode, meta);
                 break;
             default:
                 throw new Error(`doesn't support ${selectionNode.kind} yet`);
         }
-        tokens.push(separator);
+        yield meta.separator;
     }
-    return tokens;
+    yield '}';
 }
 
-export function* compileTypeNode(typeNode: TypeNode) {
-    switch (typeNode.kind) {
-        case 'ListType':
-            yield '[';
-            yield* compileTypeNode(typeNode.type);
-            yield ']';
-            break;
-        case 'NamedType':
-            yield typeNode.name.value;
-            break;
-        default:
-            throw new Error(`${typeNode.kind} is not supported yet`);
-    }
+// compiles fragmentt spread in its source form and notify caller which fragment was used
+function* compileFragmentSpread(node: FragmentSpreadNode, meta: Meta) {
+    yield `...${node.name.value}`;
+    meta.usedFragments.add(meta.info.fragments[node.name.value]);
 }
 
-export function compileFieldNode(node: FieldNode, separator: Separator): string[] {
+export function compileFieldNode(node: FieldNode, meta: Meta): string[] {
     let tokens = [];
     const fieldName = node.name.value;
     tokens.push(fieldName);
     if (!node.selectionSet) {
         return tokens;
     }
-    tokens.push('{');
-    tokens = tokens.concat(compileRemoteSelectionSet(node.selectionSet, separator));
-    tokens.push('}');
+    tokens = tokens.concat(
+        Array.from(compileRemoteSelectionSet(node.selectionSet, meta))
+    );
     return tokens;
 }
 
@@ -145,7 +170,7 @@ function* compileArguments(args: ArgumentNodes) {
 }
 
 export function* compileOperationVariables(operation: OperationDefinitionNode) {
-    if(operation.variableDefinitions.length === 0) {
+    if (operation.variableDefinitions.length === 0) {
         return;
     }
     yield '(';
@@ -156,4 +181,19 @@ export function* compileOperationVariables(operation: OperationDefinitionNode) {
         yield* compileTypeNode(variableDefinition.type);
     }
     yield ')'
+}
+
+export function* compileTypeNode(typeNode: TypeNode) {
+    switch (typeNode.kind) {
+        case 'ListType':
+            yield '[';
+            yield* compileTypeNode(typeNode.type);
+            yield ']';
+            break;
+        case 'NamedType':
+            yield typeNode.name.value;
+            break;
+        default:
+            throw new Error(`${typeNode.kind} is not supported yet`);
+    }
 }

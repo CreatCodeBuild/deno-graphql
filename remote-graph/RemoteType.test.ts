@@ -27,6 +27,7 @@ describe("Unit Tests", async () => {
 				arg3: Enum
 				arg4: [Enum]
 			): [Book]
+			author: Author
 		}
 
 		enum Enum {
@@ -62,7 +63,11 @@ describe("Unit Tests", async () => {
 			let root = {
 				books: (parent, args, info) => {
 					assert.strictEqual(
-						CompileRemoteSelectionSet(info, 'books', ',').join(''),
+						CompileRemoteSelectionSet(
+							info,
+							'books',
+							{ separator: ',', info, usedFragments: null }
+						).join(''),
 						`books{title,}`);
 				}
 			};
@@ -73,7 +78,7 @@ describe("Unit Tests", async () => {
 			let root = {
 				books: (parent, args, info) => {
 					assert.strictEqual(
-						CompileRemoteSelectionSet(info, 'books', ',').join(''),
+						CompileRemoteSelectionSet(info, 'books', { separator: ',', info, usedFragments: null }).join(''),
 						`books{title,}`);
 				}
 			};
@@ -84,7 +89,7 @@ describe("Unit Tests", async () => {
 			let root = {
 				books: (parent, args, info) => {
 					assert.strictEqual(
-						CompileRemoteSelectionSet(info, 'books', ',').join(''),
+						CompileRemoteSelectionSet(info, 'books', { separator: ',', info, usedFragments: null }).join(''),
 						`books{title,title,}`);
 				}
 			};
@@ -95,7 +100,7 @@ describe("Unit Tests", async () => {
 			let root = {
 				books: (parent, args, info: GraphQLResolveInfo) => {
 					assert.strictEqual(
-						CompileRemoteSelectionSet(info, 'books', ',').join(''),
+						CompileRemoteSelectionSet(info, 'books', { separator: ',', info, usedFragments: null }).join(''),
 						`books{author{name,},}`);
 				}
 			};
@@ -106,7 +111,7 @@ describe("Unit Tests", async () => {
 			let root = {
 				books: (parent, args, info: GraphQLResolveInfo) => {
 					assert.strictEqual(
-						CompileRemoteSelectionSet(info, 'books', ' ').join(''),
+						CompileRemoteSelectionSet(info, 'books', { separator: ' ', info, usedFragments: null }).join(''),
 						`books{author{name } }`);
 				}
 			};
@@ -117,7 +122,7 @@ describe("Unit Tests", async () => {
 			let root = {
 				books: (parent, args, info: GraphQLResolveInfo) => {
 					assert.strictEqual(
-						CompileRemoteSelectionSet(info, 'books', ',').join(''),
+						CompileRemoteSelectionSet(info, 'books', { separator: ',', info, usedFragments: null }).join(''),
 						`books{author{name,},title,}`);
 				}
 			};
@@ -128,7 +133,7 @@ describe("Unit Tests", async () => {
 			let root = {
 				books: (parent, args, info: GraphQLResolveInfo) => {
 					assert.strictEqual(
-						CompileRemoteSelectionSet(info, 'books', ',').join(''),
+						CompileRemoteSelectionSet(info, 'books', { separator: ',', info, usedFragments: null }).join(''),
 						`books(arg1:1,){title,}`);
 				}
 			};
@@ -202,6 +207,39 @@ describe("Unit Tests", async () => {
 				root,
 				null, // context
 				{ enums: ["X"] }
+			);
+			assert.strictEqual(res.errors, undefined);
+		});
+		it('test 13, fragments', async () => {
+			let root = {
+				books: (parent, args, info: GraphQLResolveInfo) => {
+					assert.strictEqual(
+						CompileRemoteQuery(info, 'query', 'books'),
+						`query{books{...f,}}fragment,f,on,Book{title,author{name,},}`);
+				}
+			};
+			let res = await graphql(
+				schema,
+				`
+				query { 
+					books { 
+						...f
+					}
+					author {
+						...f2
+					}
+				}
+				fragment f on Book {
+					title
+					author {
+						name
+					}
+				}
+				fragment f2 on Author {
+					name
+				}
+				`,
+				root
 			);
 			assert.strictEqual(res.errors, undefined);
 		});
@@ -287,7 +325,6 @@ describe("Unit Tests", async () => {
 
 		it("test 1", async () => {
 			let root = {
-				// todo: implement batched RemoteType
 				books: await BatchedRemoteType(LocalTransport(), 'query', 'remoteBooks')
 			};
 			let res = await graphql(schema,

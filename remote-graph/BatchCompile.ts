@@ -10,7 +10,7 @@ import {
 
 type Separator = ' ' | ',';
 
-type Infos = {[key: string]: GraphQLResolveInfo[] };
+type Infos = { [key: string]: GraphQLResolveInfo[] };
 
 export function CompileRemoteQueries(infos: Infos, operationName: OperationTypeNode, separator?: Separator) {
     if (!separator) { separator = ','; }
@@ -21,16 +21,18 @@ function* compileRemoteQueries(infos: Infos, operationName: OperationTypeNode, s
     yield operationName;
     const operations = [];
     for (let [remoteField, infosOfTheSameEntry] of Object.entries(infos)) {
-        for(let info of infosOfTheSameEntry) {
+        for (let info of infosOfTheSameEntry) {
             operations.push(info.operation);
         }
     }
-    yield *compileOperationsVariables(operations);
+    yield* compileOperationsVariables(operations);
     yield '{';
     for (let [remoteField, infosOfTheSameEntry] of Object.entries(infos)) {
-        for(let [i, info] of Object.entries(infosOfTheSameEntry)) {
-            yield remoteField+String(i)+':';
-            yield *CompileRemoteSelectionSet(info, remoteField, separator);
+        for (let [i, info] of Object.entries(infosOfTheSameEntry)) {
+            yield remoteField + String(i) + ':';
+            yield* CompileRemoteSelectionSet(info, remoteField, {
+                info, separator, usedFragments: new Set()
+            });
             yield separator;
         }
     }
@@ -38,24 +40,24 @@ function* compileRemoteQueries(infos: Infos, operationName: OperationTypeNode, s
 }
 
 function* compileOperationsVariables(operations: OperationDefinitionNode[]) {
-    if(operations.length === 0) {
+    if (operations.length === 0) {
         return;
     }
     let noVars = true;
-    for(let op of operations) {
-        if(op.variableDefinitions.length > 0) {
+    for (let op of operations) {
+        if (op.variableDefinitions.length > 0) {
             noVars = false;
             break;
         }
     }
-    if(noVars) {
+    if (noVars) {
         return;
     }
     const variableNames = {};
     yield '(';
-    for(let op of operations) {
+    for (let op of operations) {
         for (let variableDefinition of op.variableDefinitions) {
-            if(variableDefinition.variable.name.value in variableNames) {
+            if (variableDefinition.variable.name.value in variableNames) {
                 break;
             }
             variableNames[variableDefinition.variable.name.value] = null;
