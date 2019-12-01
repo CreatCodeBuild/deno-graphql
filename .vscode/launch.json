@@ -14,7 +14,7 @@
                 "999999",
                 "-r",
                 "ts-node/register",
-                "-g", "test 12",
+                "-g", "test 3, variables",
                 "${workspaceFolder}/remote-graph/RemoteType.test.ts"
             ],
             "console": "integratedTerminal",
