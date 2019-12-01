@@ -4,17 +4,17 @@
 #
 version: 2
 jobs:
-  build:
+  remote-graph:
     docker:
       # specify the version you desire here
       - image: circleci/node:latest
 
-    working_directory: ~/repo
+    working_directory: ~/repo/remote-graph
 
     steps:
       - checkout
 
       # Download and cache dependencies
-      - run: cd remote-graph && yarn install
+      - run: yarn install
       # run tests!
       - run: $(npm bin)/mocha -r ts-node/register .\RemoteType.test.ts
