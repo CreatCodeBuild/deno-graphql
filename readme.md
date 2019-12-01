@@ -1,1 +1,4 @@
-This repo contains many of my GraphQL projects, hacks and ideas.
+My GraphQL projects and ideas.
+
+## Remote Graph
+A lib that lets you execute remote resovlers in a remote schema as if they are local. Useful for service oriented architecture.
