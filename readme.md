@@ -1,1 +1,1 @@
-This repo contains many of my GraphQL projects, hacks and ideas.
+My GraphQL projects and ideas.
