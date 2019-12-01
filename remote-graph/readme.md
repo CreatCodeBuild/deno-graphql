@@ -7,6 +7,7 @@ In contrast of Apollo Federation, it needs __zero modification__ of your local s
 
 As a byproduct, the __zero-modification__ principle enables you to merge 3rd party schema, which you have no control, into your schema. Therefore, your frontend or mobile clients can treat in-house schema and 3rd party schema as one unified API.
 
+## Example
 The example below merges 3 public GraphQL schema into one. They are:
 1. https://graphql-explorer.githubapp.com/graphql/proxy (GitHub)
 2. https://countries.trevorblades.com/
@@ -177,6 +178,10 @@ async function f() {
 f();
 ```
 
+## Nice Features
+1. Batching Remote Queries  
+If you have a query `query { x y z }` where `x` and `y` belong to the same remote server, this lib will compile only 1 remote query that batches them together. Batching happens automatically and __zero-configuration__ is needed.
+
 ## Todo
 1. Full query language support. `RemoteType` does not support full GraphQL query language yet. For example, it does not support Fragments and Interface.
 2. Add `@remote` directive to allow better ahead of time type checking, readability. An draft design is
@@ -189,7 +194,6 @@ type User @remote(url: "github.com/graphql-api", entry: "Query.viewer") {
     age:    Int @local  # should allow local schema to expand a remote type.
 }
 ```
-3. Should work with `dataloader` seemlessly. This has to be done.
-4. `Mutation` has no semantic difference with `Query` so it's already supported. I need to think about how to support `Subscription`.
-5. Remote schema auto generation. Instead of copy & paste remote schema into your local. Maybe I should write a tool to generate schema language source from the introspected schema.
-6. Somebody please comes out a better name for this library.
+3. `Mutation` has no semantic difference with `Query` so it's already supported. I need to think about how to support `Subscription`.
+4. Remote schema auto generation. Instead of copy & paste remote schema into your local. Maybe I should write a tool to generate schema language source from the introspected schema.
+5. Somebody please comes out a better name for this library.
