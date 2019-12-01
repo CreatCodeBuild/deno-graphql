@@ -2,10 +2,12 @@ import {
     GraphQLResolveInfo,
     OperationTypeNode,
     OperationDefinitionNode,
+    FragmentDefinitionNode
 } from "graphql";
 import {
     CompileRemoteSelectionSet,
-    compileTypeNode
+    compileTypeNode,
+    compileFragmentDefinitionNode
 } from './Compile';
 
 type Separator = ' ' | ',';
@@ -27,16 +29,23 @@ function* compileRemoteQueries(infos: Infos, operationName: OperationTypeNode, s
     }
     yield* compileOperationsVariables(operations);
     yield '{';
+
+    let anyInfo: any;
+    const usedFragments = new Set<FragmentDefinitionNode>();
     for (let [remoteField, infosOfTheSameEntry] of Object.entries(infos)) {
         for (let [i, info] of Object.entries(infosOfTheSameEntry)) {
+            anyInfo = info;
             yield remoteField + String(i) + ':';
-            yield* CompileRemoteSelectionSet(info, remoteField, {
-                info, separator, usedFragments: new Set()
-            });
+            const meta = { info, separator, usedFragments };
+            yield* CompileRemoteSelectionSet(info, remoteField, meta);
             yield separator;
         }
     }
     yield '}';
+    // fragments
+    for(let fragment of usedFragments) {
+        yield* compileFragmentDefinitionNode(fragment, {info: anyInfo, separator, usedFragments});
+    }
 }
 
 function* compileOperationsVariables(operations: OperationDefinitionNode[]) {

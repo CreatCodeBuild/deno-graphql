@@ -290,6 +290,39 @@ describe("Unit Tests", async () => {
 			);
 			assert.strictEqual(res.errors, undefined);
 		});
+		it('test 4, fragments', async () => {
+			let root = {
+				books: (parent, args, info: GraphQLResolveInfo) => {
+					assert.strictEqual(
+						CompileRemoteQueries({'books': [info]}, 'query'),
+						`query{books0:books{...f,},}fragment,f,on,Book{title,author{name,},}`);
+				}
+			};
+			let res = await graphql(
+				schema,
+				`
+				query { 
+					books { 
+						...f
+					}
+					author {
+						...f2
+					}
+				}
+				fragment f on Book {
+					title
+					author {
+						name
+					}
+				}
+				fragment f2 on Author {
+					name
+				}
+				`,
+				root
+			);
+			assert.strictEqual(res.errors, undefined);
+		});
 	});
 
 	describe('Working with Dataloader', async () => {

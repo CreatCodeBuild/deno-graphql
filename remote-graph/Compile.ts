@@ -44,7 +44,7 @@ export function CompileRemoteQuery(info: GraphQLResolveInfo, operationName: Oper
     return tokens.join('');
 }
 
-function* compileFragmentDefinitionNode(fragment: FragmentDefinitionNode, meta: Meta) {
+export function* compileFragmentDefinitionNode(fragment: FragmentDefinitionNode, meta: Meta) {
     yield 'fragment';
     yield meta.separator;
     yield fragment.name.value;
@@ -70,7 +70,7 @@ export function CompileRemoteSelectionSet(info: GraphQLResolveInfo, remoteField:
 }
 
 
-export function* compileRemoteSelectionSet(
+function* compileRemoteSelectionSet(
     selectionSet: SelectionSetNode,
     meta: Meta
 ) {
@@ -101,7 +101,7 @@ function* compileFragmentSpread(node: FragmentSpreadNode, meta: Meta) {
     meta.usedFragments.add(meta.info.fragments[node.name.value]);
 }
 
-export function compileFieldNode(node: FieldNode, meta: Meta): string[] {
+function compileFieldNode(node: FieldNode, meta: Meta): string[] {
     let tokens = [];
     const fieldName = node.name.value;
     tokens.push(fieldName);
@@ -114,7 +114,7 @@ export function compileFieldNode(node: FieldNode, meta: Meta): string[] {
     return tokens;
 }
 
-export function* compileValueNode(value: ValueNode) {
+function* compileValueNode(value: ValueNode) {
     switch (value.kind) {
         case 'IntValue':
             yield value.value;
@@ -169,7 +169,7 @@ function* compileArguments(args: ArgumentNodes) {
     yield ')';
 }
 
-export function* compileOperationVariables(operation: OperationDefinitionNode) {
+function* compileOperationVariables(operation: OperationDefinitionNode) {
     if (operation.variableDefinitions.length === 0) {
         return;
     }
