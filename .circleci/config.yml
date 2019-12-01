@@ -15,7 +15,7 @@ jobs:
       - checkout
 
       # Download and cache dependencies
-      - run: yarn install
+      - run: npm install
       # run tests!
       - run: $(npm bin)/mocha -r ts-node/register .\RemoteType.test.ts
 
