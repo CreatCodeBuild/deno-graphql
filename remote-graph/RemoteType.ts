@@ -5,8 +5,11 @@ import {
     IntrospectionQuery
 } from "graphql";
 export { CompileRemoteQueries } from './BatchCompile';
+import { CompileRemoteQueries } from './BatchCompile';
 export { CompileRemoteSelectionSet, CompileRemoteQuery } from './Compile';
-import { CompileRemoteQuery} from './Compile';
+import { CompileRemoteQuery } from './Compile';
+
+import * as DataLoader from 'dataloader';
 
 export function MapArgument(info: GraphQLResolveInfo, args: any): GraphQLResolveInfo {
     let newArgs = [];
@@ -24,6 +27,41 @@ type VariableValues = { [variableName: string]: any };
 export interface Transport {
     do(remoteQuery: string, variables?: VariableValues)
     url: string
+}
+
+
+export async function BatchedRemoteType(transport: Transport, operationName: OperationTypeNode, remoteField: string) {
+
+    // load remote schema
+    const response2 = await transport.do(introspectionQuery);
+    const introspection: IntrospectionQuery = response2.data;
+    // check if remoteField is in remote Operation root type.
+    if (!validateRemoteField(introspection, operationName, remoteField)) {
+        throw new Error(`${remoteField} does not exits in remote schema at ${transport.url}`);
+    }
+
+    type resolverSignature = {args, ctx, info: GraphQLResolveInfo};
+
+    const loader = new DataLoader(async (resolves: resolverSignature[]) => {
+        
+        let infos = [];
+        for(let resovlerParams of resolves) {
+            infos.push(resovlerParams.info);
+        }
+
+        const remoteQuery = CompileRemoteQueries({[remoteField]: infos}, operationName, ',')
+
+        // do transport
+        // each info has the same variableValues because they belong to the same query document.
+        const response = await transport.do(remoteQuery, infos[0].variableValues)
+
+        // dispatch result back as an array
+        return Object.entries(response.data).map(([fieldAlias, data]) => data);
+    })
+
+    return async function (args, ctx, info: GraphQLResolveInfo) {
+        return loader.load({args, ctx, info});
+    }
 }
 
 export async function RemoteType(transport: Transport, operationName: OperationTypeNode, remoteField: string) {

@@ -3,7 +3,13 @@ import {
 	graphql,
 	buildSchema,
 } from "graphql";
-import { CompileRemoteSelectionSet, CompileRemoteQuery, CompileRemoteQueries, RemoteType } from "./RemoteType";
+import {
+	CompileRemoteSelectionSet,
+	CompileRemoteQuery,
+	CompileRemoteQueries,
+	RemoteType,
+	BatchedRemoteType
+} from "./RemoteType";
 import { HTTP } from "./Transport";
 
 const fetch = require("node-fetch");
@@ -254,7 +260,7 @@ describe("Unit Tests", async () => {
 
 			const schema = buildSchema(`
 				type Query {
-					remoteBooks: [Book]
+					remoteBooks(arg1:Int!): [Book]
 				}
 				type Book {
 					title: String
@@ -264,9 +270,11 @@ describe("Unit Tests", async () => {
 			return {
 				do: async (remoteQuery: string, variables) => {
 					return await graphql(schema, remoteQuery, {
-						remoteBooks: [{
-							title: "remote book 1"
-						}]
+						remoteBooks: (args) => {
+							return [{
+								title: `remote book ${args.arg1}`
+							}];
+						}
 					});
 				},
 				url: "local"
@@ -276,12 +284,13 @@ describe("Unit Tests", async () => {
 		it("test 1", async () => {
 			let root = {
 				// todo: implement batched RemoteType
-				books: await RemoteType(LocalTransport(), 'query', 'remoteBooks')
+				books: await BatchedRemoteType(LocalTransport(), 'query', 'remoteBooks')
 			};
 			let res = await graphql(schema,
 				`{ 
-					b1: books { title }
-					b2: books { title } 
+					b1: books(arg1:1) { title }
+					b2: books(arg1:2) { title }
+					b3: books(arg1:3) { title }
 				}`,
 				root);
 			assert.strictEqual(res.errors, undefined);
@@ -290,7 +299,10 @@ describe("Unit Tests", async () => {
 					title: "remote book 1"
 				}],
 				b2: [{
-					title: "remote book 1"
+					title: "remote book 2"
+				}],
+				b3: [{
+					title: "remote book 3"
 				}]
 			});
 		});
