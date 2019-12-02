@@ -294,7 +294,7 @@ describe("Unit Tests", async () => {
 			let root = {
 				books: (parent, args, info: GraphQLResolveInfo) => {
 					assert.strictEqual(
-						CompileRemoteQueries({'books': [info]}, 'query'),
+						CompileRemoteQueries({ 'books': [info] }, 'query'),
 						`query{books0:books{...f,},}fragment,f,on,Book{title,author{name,},}`);
 				}
 			};
@@ -401,6 +401,7 @@ describe('Integration Tests', async () => {
 	const service1Port = 4000;
 	const { server } = require('./integration-tests/service1');
 	const serverUp = await server.listen({ port: service1Port });
+	log(`test server listens at ${serverUp.url}`);
 	it("test 1", async () => {
 		let root = {
 			books: await RemoteType(HTTP(serverUp.url), `query`, `getAllBooks`)
@@ -445,6 +446,51 @@ describe('Integration Tests', async () => {
 				author: 'J.K. Rowling',
 			}
 		]);
+	});
+
+	it("test 4, the same field is requested with different aliases with different subfields and arguments", async () => {
+		let root = {
+			booksBy: await RemoteType(HTTP(serverUp.url), `query`, `getBooksBy`)
+		};
+		let res = await graphql(
+			schema,
+			`
+			query { 
+				b1: booksBy(author:"J.K. Rowling") { 
+					...f
+				}
+				b2: booksBy(author:"Michael Crichton") { 
+					...f2
+				}
+			}
+			fragment f on Book {
+				title
+				author
+				a2: author
+			}
+			fragment f2 on Book {
+				t1: title
+				t2: title
+			}
+			`,
+			root
+		);
+		assert.strictEqual(res.errors, undefined);
+		assert.deepEqual(res.data, {
+			b1: [
+				{
+					title: 'Harry Potter and the Chamber of Secrets',
+					author: 'J.K. Rowling',
+					a2: 'J.K. Rowling',
+				}
+			],
+			b2: [
+				{
+					t1: 'Jurassic Park',
+					t2: 'Jurassic Park',
+				},
+			],
+		});
 	});
 
 	after(async () => {

@@ -54,7 +54,9 @@ export async function BatchedRemoteType(transport: Transport, operationName: Ope
         // do transport
         // each info has the same variableValues because they belong to the same query document.
         const response = await transport.do(remoteQuery, infos[0].variableValues)
-
+        if(response.errors) {
+            throw new Error(response.errors);
+        }
         // dispatch result back as an array
         return Object.entries(response.data).map(([fieldAlias, data]) => data);
     })
