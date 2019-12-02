@@ -81,6 +81,9 @@ export async function RemoteType(transport: Transport, operationName: OperationT
         const remoteQuery = CompileRemoteQuery(info, operationName, remoteField);
         // do remote query
         const response = await transport.do(remoteQuery, info.variableValues)
+        if(response.errors) {
+            throw new Error(response.errors);
+        }
         return response.data[remoteField];
     }
 }
