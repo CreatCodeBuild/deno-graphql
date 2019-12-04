@@ -2,7 +2,18 @@ import {
     GraphQLResolveInfo,
     OperationTypeNode,
     introspectionQuery,
-    IntrospectionQuery
+    IntrospectionQuery,
+    ArgumentNode,
+    ValueNode,
+    astFromValue,
+    GraphQLScalarType,
+    GraphQLEnumType,
+    GraphQLBoolean,
+    GraphQLString,
+    GraphQLInt,
+    GraphQLNonNull,
+    GraphQLFloat,
+    GraphQLInputType
 } from "graphql";
 export { CompileRemoteQueries } from './BatchCompile';
 import { CompileRemoteQueries } from './BatchCompile';
@@ -11,12 +22,38 @@ import { CompileRemoteQuery } from './Compile';
 
 import * as DataLoader from 'dataloader';
 
-export function MapArgument(info: GraphQLResolveInfo, args: any): GraphQLResolveInfo {
+export function FilterArgument(info: GraphQLResolveInfo, args: any): GraphQLResolveInfo {
     let newArgs = [];
     for (let arg of info.fieldNodes[0].arguments) {
         if (arg.name.value in args) {
             newArgs.push(arg);
         }
+    }
+    const newInfo = Object.assign(Object.create(null), info);
+    newInfo.fieldNodes[0].arguments = newArgs;
+    return newInfo;
+}
+
+export function OverrideArgument(info: GraphQLResolveInfo, args: any): GraphQLResolveInfo {
+    let newArgs: ArgumentNode[] = [];
+    for (let [k, v] of Object.entries(args)) {
+        const inputType: any = (function() {
+            // todo: full implementation
+            switch (typeof (v)) {
+                case 'boolean':
+                    return GraphQLBoolean;
+                case 'string':
+                    return GraphQLString;
+                case 'number':
+                    return GraphQLScalarType;
+            }
+            return GraphQLEnumType;
+        })();
+        newArgs.push({
+            kind: 'Argument',
+            name: { kind: 'Name', value: k },
+            value: astFromValue(v, inputType)
+        });
     }
     const newInfo = Object.assign(Object.create(null), info);
     newInfo.fieldNodes[0].arguments = newArgs;
@@ -54,7 +91,7 @@ export async function BatchedRemoteType(transport: Transport, operationName: Ope
         // do transport
         // each info has the same variableValues because they belong to the same query document.
         const response = await transport.do(remoteQuery, infos[0].variableValues)
-        if(response.errors) {
+        if (response.errors) {
             throw new Error(response.errors);
         }
         // dispatch result back as an array
@@ -79,9 +116,10 @@ export async function RemoteType(transport: Transport, operationName: OperationT
     return async function (args, ctx, info: GraphQLResolveInfo) {
 
         const remoteQuery = CompileRemoteQuery(info, operationName, remoteField);
+        console.log(remoteQuery);
         // do remote query
         const response = await transport.do(remoteQuery, info.variableValues)
-        if(response.errors) {
+        if (response.errors) {
             throw new Error(response.errors);
         }
         return response.data[remoteField];
