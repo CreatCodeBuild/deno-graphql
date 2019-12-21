@@ -13,7 +13,8 @@ import {
     GraphQLInt,
     GraphQLNonNull,
     GraphQLFloat,
-    GraphQLInputType
+    GraphQLInputType,
+    GraphQLList
 } from "graphql";
 export { CompileRemoteQueries } from './BatchCompile';
 import { CompileRemoteQueries } from './BatchCompile';
@@ -35,24 +36,43 @@ export function FilterArgument(info: GraphQLResolveInfo, args: any): GraphQLReso
 }
 
 export function OverrideArgument(info: GraphQLResolveInfo, args: any): GraphQLResolveInfo {
+    function typeOf(v): GraphQLInputType {
+        switch (typeof (v)) {
+            case 'boolean':
+                return GraphQLBoolean;
+            case 'string':
+                return GraphQLString;
+            case 'number':
+                return GraphQLFloat;
+        }
+        if (v === null) {
+            return null;
+        }
+        if (v instanceof Array) {
+            return new GraphQLList(typeOf(v));
+        }
+
+        return undefined;
+    }
+
     let newArgs: ArgumentNode[] = [];
     for (let [k, v] of Object.entries(args)) {
-        const inputType: any = (function() {
+        const inputType: any = (function () {
             // todo: full implementation
-            switch (typeof (v)) {
-                case 'boolean':
-                    return GraphQLBoolean;
-                case 'string':
-                    return GraphQLString;
-                case 'number':
-                    return GraphQLScalarType;
+            let t = typeOf(v);
+            if (t !== undefined) {
+                return t;
             }
+
             return GraphQLEnumType;
         })();
+        const value = astFromValue(v, typeOf(v));
+        console.log(v, typeof(v), value);
         newArgs.push({
             kind: 'Argument',
             name: { kind: 'Name', value: k },
-            value: astFromValue(v, inputType)
+            //
+            value: value
         });
     }
     const newInfo = Object.assign(Object.create(null), info);

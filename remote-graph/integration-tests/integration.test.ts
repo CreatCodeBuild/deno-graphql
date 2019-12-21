@@ -8,9 +8,24 @@ describe('All', async () => {
     type Query {
         countries(byName: String): [Country]
         china: Country
+        Media: Media
     }
     type Country {
         name: String
+    }
+
+    enum MediaSort {
+        SCORE
+        POPULARITY
+    }
+    type Media {
+        id: Int
+        isAdult: Boolean
+        title: MediaTitle
+    }
+    type MediaTitle {
+        romaji: String
+        native: String
     }
     `;
 
@@ -28,6 +43,11 @@ describe('All', async () => {
             `query`,
             `country`);
 
+        const Media = await RemoteType(
+            HTTP('https://graphql.anilist.co/'),
+            `query`,
+            `Media`);
+
         return {
             countries: async function (args, ctx, info) {
                 const remoteResult = await countries(null, ctx, FilterArgument(info, {}));
@@ -38,8 +58,12 @@ describe('All', async () => {
                 }
                 return remoteResult;
             },
-            china: async function(args, ctx, info) {
-                return await country(null, ctx, OverrideArgument(info, {code: "CN"}));
+            china: async function (args, ctx, info) {
+                return await country(null, ctx, OverrideArgument(info, { code: "CN" }));
+            },
+            Media: async function (args, ctx, info) {
+                console.log("+++");
+                return await Media(null, ctx, OverrideArgument(info, { sort: ["SCORE"] }))
             }
         };
     }
@@ -54,26 +78,30 @@ describe('All', async () => {
                 china {
                     name
                 }
+                Media {
+                    id
+                }
             }
             `,
             await ResolverFactory(),
             null, // context
             { "sort": "SCORE" }
         );
-
-        deepEqual(res,
+        strictEqual(res.errors, undefined);
+        deepEqual(res.data,
             {
-                "data": {
-                    "countries": [
-                        { "name": "Argentina" },
-                        { "name": "Bosnia and Herzegovina" },
-                        { "name": "Burkina Faso" },
-                        { "name": "China" },
-                        { "name": "Suriname" }
-                    ],
-                    "china": {
-                        "name": "China"
-                    }
+                "countries": [
+                    { "name": "Argentina" },
+                    { "name": "Bosnia and Herzegovina" },
+                    { "name": "Burkina Faso" },
+                    { "name": "China" },
+                    { "name": "Suriname" }
+                ],
+                "china": {
+                    "name": "China"
+                },
+                "Media": {
+                    "id": 113627
                 }
             }
         )
