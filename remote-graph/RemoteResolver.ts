@@ -35,38 +35,38 @@ export function FilterArgument(info: GraphQLResolveInfo, args: any): GraphQLReso
     return newInfo;
 }
 
-export function OverrideArgument(info: GraphQLResolveInfo, args: any): GraphQLResolveInfo {
-    function typeOf(v): GraphQLInputType {
-        switch (typeof (v)) {
-            case 'boolean':
-                return GraphQLBoolean;
-            case 'string':
-                return GraphQLString;
-            case 'number':
-                return GraphQLFloat;
-        }
-        if (v === null) {
-            return null;
-        }
-        if (v instanceof Array) {
-            return new GraphQLList(typeOf(v));
-        }
-
-        return undefined;
+export function OverrideArgument(info: GraphQLResolveInfo, args: any, typeInformation: IntrospectionQuery): GraphQLResolveInfo {
+    if(args === undefined || args === null) {
+        return info;
     }
+    // function typeOf(v): GraphQLInputType {
+    //     switch (typeof (v)) {
+    //         case 'boolean':
+    //             return GraphQLBoolean;
+    //         case 'string':
+    //             return GraphQLString;
+    //         case 'number':
+    //             return GraphQLFloat;
+    //     }
+    //     if (v === null) {
+    //         return null;
+    //     }
+    //     if (v instanceof Array) {
+    //         return new GraphQLList(typeOf(v));
+    //     }
 
+    //     return undefined;
+    // }
+    function typeOf(argName: string, value: any) {
+        // todo: full implementation
+        
+        typeInformation.__schema.types // todo: how should I do it?
+
+        return GraphQLEnumType;
+    };
     let newArgs: ArgumentNode[] = [];
     for (let [k, v] of Object.entries(args)) {
-        const inputType: any = (function () {
-            // todo: full implementation
-            let t = typeOf(v);
-            if (t !== undefined) {
-                return t;
-            }
-
-            return GraphQLEnumType;
-        })();
-        const value = astFromValue(v, typeOf(v));
+        const value = astFromValue(v, typeOf(k, v));
         console.log(v, typeof(v), value);
         newArgs.push({
             kind: 'Argument',
@@ -75,7 +75,7 @@ export function OverrideArgument(info: GraphQLResolveInfo, args: any): GraphQLRe
             value: value
         });
     }
-    const newInfo = Object.assign(Object.create(null), info);
+    const newInfo = Object.assign(Object.create(null), info); // todo: consider deep clone
     newInfo.fieldNodes[0].arguments = newArgs;
     return newInfo;
 }
@@ -134,7 +134,7 @@ export async function RemoteResolver(transport: Transport, operation: OperationT
     }
 
     return async function (args, ctx, info: GraphQLResolveInfo) {
-
+        info = OverrideArgument(info, args);
         const remoteQuery = CompileRemoteQuery(info, operation, remoteField);
         console.log(remoteQuery);
         // do remote query
