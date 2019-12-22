@@ -123,19 +123,19 @@ export async function BatchedRemoteType(transport: Transport, operationName: Ope
     }
 }
 
-export async function RemoteType(transport: Transport, operationName: OperationTypeNode, remoteField: string) {
+export async function RemoteResolver(transport: Transport, operation: OperationTypeNode, remoteField: string) {
 
     // load remote schema
     const response2 = await transport.do(introspectionQuery);
     const introspection: IntrospectionQuery = response2.data;
     // check if remoteField is in remote Operation root type.
-    if (!validateRemoteField(introspection, operationName, remoteField)) {
+    if (!validateRemoteField(introspection, operation, remoteField)) {
         throw new Error(`${remoteField} does not exits in remote schema at ${transport.url}`);
     }
 
     return async function (args, ctx, info: GraphQLResolveInfo) {
 
-        const remoteQuery = CompileRemoteQuery(info, operationName, remoteField);
+        const remoteQuery = CompileRemoteQuery(info, operation, remoteField);
         console.log(remoteQuery);
         // do remote query
         const response = await transport.do(remoteQuery, info.variableValues)

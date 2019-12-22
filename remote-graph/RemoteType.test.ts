@@ -7,9 +7,9 @@ import {
 	CompileRemoteSelectionSet,
 	CompileRemoteQuery,
 	CompileRemoteQueries,
-	RemoteType,
+	RemoteResolver,
 	BatchedRemoteType
-} from "./RemoteType";
+} from "./RemoteResolver";
 import { HTTP } from "./Transport";
 
 const fetch = require("node-fetch");
@@ -401,10 +401,9 @@ describe('Integration Tests', async () => {
 	const service1Port = 4000;
 	const { server } = require('./integration-tests/service1');
 	const serverUp = await server.listen({ port: service1Port });
-	log(`test server listens at ${serverUp.url}`);
 	it("test 1", async () => {
 		let root = {
-			books: await RemoteType(HTTP(serverUp.url), `query`, `getAllBooks`)
+			books: await RemoteResolver(HTTP(serverUp.url), `query`, `getAllBooks`)
 		};
 		let res = await graphql(schema, `{ books { author t:title } }`, root);
 		assert.strictEqual(res.errors, undefined);
@@ -422,7 +421,7 @@ describe('Integration Tests', async () => {
 	});
 	it("test 2, arguments", async () => {
 		let root = {
-			booksBy: await RemoteType(HTTP(serverUp.url), `query`, `getBooksBy`)
+			booksBy: await RemoteResolver(HTTP(serverUp.url), `query`, `getBooksBy`)
 		};
 		let res = await graphql(schema, `{ booksBy(author:"J.K. Rowling") { author title } }`, root);
 		assert.strictEqual(res.errors, undefined);
@@ -436,7 +435,7 @@ describe('Integration Tests', async () => {
 	});
 	it("test 3, composite arguments", async () => {
 		let root = {
-			booksBy: await RemoteType(HTTP(serverUp.url), `query`, `getBooksBy`)
+			booksBy: await RemoteResolver(HTTP(serverUp.url), `query`, `getBooksBy`)
 		};
 		let res = await graphql(schema, `{ booksBy(author:"J.K. Rowling") { author title } }`, root);
 		assert.strictEqual(res.errors, undefined);
@@ -450,7 +449,7 @@ describe('Integration Tests', async () => {
 
 	it("test 4, the same field is requested with different aliases with different subfields and arguments", async () => {
 		let root = {
-			booksBy: await RemoteType(HTTP(serverUp.url), `query`, `getBooksBy`)
+			booksBy: await RemoteResolver(HTTP(serverUp.url), `query`, `getBooksBy`)
 		};
 		let res = await graphql(
 			schema,

@@ -1,4 +1,4 @@
-import { RemoteType, FilterArgument, OverrideArgument, Transport } from '../RemoteType';
+import { RemoteResolver, FilterArgument, OverrideArgument, Transport } from '../RemoteResolver';
 import { HTTP } from '../Transport';
 import { buildSchema, graphql } from 'graphql';
 import { strictEqual, deepEqual } from 'assert';
@@ -33,17 +33,17 @@ describe('All', async () => {
 
     async function ResolverFactory() {
 
-        const countries = await RemoteType(
+        const countries = await RemoteResolver(
             HTTP('https://countries.trevorblades.com/'),
             `query`,
             `countries`);
 
-        const country = await RemoteType(
+        const country = await RemoteResolver(
             HTTP('https://countries.trevorblades.com/'),
             `query`,
             `country`);
 
-        const Media = await RemoteType(
+        const Media = await RemoteResolver(
             HTTP('https://graphql.anilist.co/'),
             `query`,
             `Media`);
@@ -59,11 +59,11 @@ describe('All', async () => {
                 return remoteResult;
             },
             china: async function (args, ctx, info) {
-                return await country(null, ctx, OverrideArgument(info, { code: "CN" }));
+                return await country(null, ctx, info);
             },
             Media: async function (args, ctx, info) {
                 console.log("+++");
-                return await Media(null, ctx, OverrideArgument(info, { sort: ["SCORE"] }))
+                return await Media({sort: ['SCORE']}, ctx, info);
             }
         };
     }
@@ -80,6 +80,11 @@ describe('All', async () => {
                 }
                 Media {
                     id
+                    isAdult
+                    title {
+                        romaji
+                        native
+                    }
                 }
             }
             `,
@@ -101,7 +106,12 @@ describe('All', async () => {
                     "name": "China"
                 },
                 "Media": {
-                    "id": 113627
+                    "id": 114105,
+                    "isAdult": false,
+                    "title": {
+                        "romaji": "Wang Gu Shen Hua Zhi Tian Xuan Zhe",
+                        "native": "望古神话之天选者"
+                    }
                 }
             }
         )
