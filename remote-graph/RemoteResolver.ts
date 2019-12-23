@@ -60,6 +60,7 @@ export function OverrideArgument(info: GraphQLResolveInfo, args: any, types: Ite
     // }
     function typeOf(argName: string, value: any) {
         // todo: how to convert IntrospectionInputTypeRef to GraphQLInputType?
+        // can I consider variables instead of inline args?
         for(let type of types) {
             if(type.name === argName) {
                 return type.type;
