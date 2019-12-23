@@ -1,4 +1,4 @@
-import { RemoteType, FilterArgument, OverrideArgument, Transport } from '../RemoteType';
+import { RemoteResolver, FilterArgument, OverrideArgument, Transport } from '../RemoteResolver';
 import { HTTP } from '../Transport';
 import { buildSchema, graphql } from 'graphql';
 import { strictEqual, deepEqual } from 'assert';
@@ -8,9 +8,24 @@ describe('All', async () => {
     type Query {
         countries(byName: String): [Country]
         china: Country
+        Media: Media
     }
     type Country {
         name: String
+    }
+
+    enum MediaSort {
+        SCORE
+        POPULARITY
+    }
+    type Media {
+        id: Int
+        isAdult: Boolean
+        title: MediaTitle
+    }
+    type MediaTitle {
+        romaji: String
+        native: String
     }
     `;
 
@@ -18,15 +33,20 @@ describe('All', async () => {
 
     async function ResolverFactory() {
 
-        const countries = await RemoteType(
+        const countries = await RemoteResolver(
             HTTP('https://countries.trevorblades.com/'),
             `query`,
             `countries`);
 
-        const country = await RemoteType(
+        const country = await RemoteResolver(
             HTTP('https://countries.trevorblades.com/'),
             `query`,
             `country`);
+
+        const Media = await RemoteResolver(
+            HTTP('https://graphql.anilist.co/'),
+            `query`,
+            `Media`);
 
         return {
             countries: async function (args, ctx, info) {
@@ -38,8 +58,11 @@ describe('All', async () => {
                 }
                 return remoteResult;
             },
-            china: async function(args, ctx, info) {
-                return await country(null, ctx, OverrideArgument(info, {code: "CN"}));
+            china: async function (args, ctx, info) {
+                return await country({code: 'CN'}, ctx, info);
+            },
+            Media: async function (args, ctx, info) {
+                return await Media({sort: ['SCORE']}, ctx, info);
             }
         };
     }
@@ -60,21 +83,19 @@ describe('All', async () => {
             null, // context
             { "sort": "SCORE" }
         );
-
-        deepEqual(res,
+        strictEqual(res.errors, undefined);
+        deepEqual(res.data,
             {
-                "data": {
-                    "countries": [
-                        { "name": "Argentina" },
-                        { "name": "Bosnia and Herzegovina" },
-                        { "name": "Burkina Faso" },
-                        { "name": "China" },
-                        { "name": "Suriname" }
-                    ],
-                    "china": {
-                        "name": "China"
-                    }
-                }
+                "countries": [
+                    { "name": "Argentina" },
+                    { "name": "Bosnia and Herzegovina" },
+                    { "name": "Burkina Faso" },
+                    { "name": "China" },
+                    { "name": "Suriname" }
+                ],
+                "china": {
+                    "name": "China"
+                },
             }
         )
     });

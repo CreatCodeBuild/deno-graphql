@@ -1,4 +1,4 @@
-import {Transport} from './RemoteType';
+import {Transport} from './RemoteResolver';
 const fetch = require('node-fetch');
 
 export function HTTP(url: string, headers?: any, credentials?: string): Transport {

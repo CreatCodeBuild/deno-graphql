@@ -5,9 +5,10 @@ publish:
 	npm publish dist
 
 unit-test:
-	$$(npm bin)/mocha -r ts-node/register RemoteType.test.ts
+	$$(npm bin)/mocha -r ts-node/register RemoteResolver.test.ts
 
 integration-test:
-	cd integration-tests && $$(npm bin)/mocha -r ts-node/register integration.test.ts
+	cd integration-tests && \
+	$$(npm bin)/mocha -r ts-node/register integration.test.ts --timeout 10000
 
 test: unit-test integration-test
