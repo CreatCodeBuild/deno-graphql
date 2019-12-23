@@ -1,7 +1,9 @@
 import {
+    buildClientSchema,
+    buildASTSchema
+    introspectionQuery,
     GraphQLResolveInfo,
     OperationTypeNode,
-    introspectionQuery,
     IntrospectionQuery,
     ArgumentNode,
     ValueNode,
@@ -58,16 +60,17 @@ export function OverrideArgument(info: GraphQLResolveInfo, args: any, types: Ite
 
     //     return undefined;
     // }
-    function typeOf(argName: string, value: any) {
-        // todo: how to convert IntrospectionInputTypeRef to GraphQLInputType?
-        // can I consider variables instead of inline args?
-        for(let type of types) {
-            if(type.name === argName) {
-                return type.type;
-            }
-        }
-        throw new Error('what?');
-    };
+    // function typeOf(argName: string, value: any) {
+    //     // todo: how to convert IntrospectionInputTypeRef to GraphQLInputType?
+    //     // can I consider variables instead of inline args?
+    //     for(let type of types) {
+    //         if(type.name === argName) {
+    //             return type.type;
+    //         }
+    //     }
+    //     throw new Error('what?');
+    // };
+    // todo: should just use the client schema
     let newArgs: ArgumentNode[] = [];
     for (let [k, v] of Object.entries(args)) {
         const value = astFromValue(v, typeOf(k, v));
@@ -79,6 +82,7 @@ export function OverrideArgument(info: GraphQLResolveInfo, args: any, types: Ite
             value: value
         });
     }
+    info.variableValues
     const newInfo = Object.assign(Object.create(null), info); // todo: consider deep clone
     newInfo.fieldNodes[0].arguments = newArgs;
     return newInfo;
@@ -132,6 +136,8 @@ export async function RemoteResolver(transport: Transport, operation: OperationT
     // load remote schema
     const response2 = await transport.do(introspectionQuery);
     const introspection: IntrospectionQuery = response2.data;
+    const remoteSchema = buildClientSchema(introspection);
+
     // check if remoteField is in remote Operation root type.
     if (!validateRemoteField(introspection, operation, remoteField)) {
         throw new Error(`${remoteField} does not exits in remote schema at ${transport.url}`);
