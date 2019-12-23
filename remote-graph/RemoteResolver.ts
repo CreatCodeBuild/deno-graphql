@@ -1,7 +1,8 @@
 import {
     buildClientSchema,
-    buildASTSchema
-    introspectionQuery,
+    buildASTSchema,
+    getIntrospectionQuery,
+    GraphQLSchema,
     GraphQLResolveInfo,
     OperationTypeNode,
     IntrospectionQuery,
@@ -25,6 +26,7 @@ export { CompileRemoteSelectionSet, CompileRemoteQuery } from './Compile';
 import { CompileRemoteQuery } from './Compile';
 
 import * as DataLoader from 'dataloader';
+import { Schema } from "inspector";
 
 export function FilterArgument(info: GraphQLResolveInfo, args: any): GraphQLResolveInfo {
     let newArgs = [];
@@ -38,47 +40,43 @@ export function FilterArgument(info: GraphQLResolveInfo, args: any): GraphQLReso
     return newInfo;
 }
 
-export function OverrideArgument(info: GraphQLResolveInfo, args: any, types: Iterable<IntrospectionInputValue>): GraphQLResolveInfo {
+export function OverrideArgument(
+    info: GraphQLResolveInfo,
+    args: any,
+    operation: OperationTypeNode,
+    remoteField: string,
+    remoteSchema: GraphQLSchema
+): GraphQLResolveInfo {
     if (args === undefined || args === null) {
         return info;
     }
-    // function typeOf(v): GraphQLInputType {
-    //     switch (typeof (v)) {
-    //         case 'boolean':
-    //             return GraphQLBoolean;
-    //         case 'string':
-    //             return GraphQLString;
-    //         case 'number':
-    //             return GraphQLFloat;
-    //     }
-    //     if (v === null) {
-    //         return null;
-    //     }
-    //     if (v instanceof Array) {
-    //         return new GraphQLList(typeOf(v));
-    //     }
-
-    //     return undefined;
-    // }
-    // function typeOf(argName: string, value: any) {
-    //     // todo: how to convert IntrospectionInputTypeRef to GraphQLInputType?
-    //     // can I consider variables instead of inline args?
-    //     for(let type of types) {
-    //         if(type.name === argName) {
-    //             return type.type;
-    //         }
-    //     }
-    //     throw new Error('what?');
-    // };
-    // todo: should just use the client schema
+    function typeOf(argName: string, value: any) {
+        const type = (() => {
+            if (operation === 'query') {
+                return remoteSchema.getQueryType();
+            } else if (operation === 'mutation') {
+                return remoteSchema.getMutationType();
+            } else {
+                return remoteSchema.getSubscriptionType();
+            }
+        })();
+        if (type.getFields()[remoteField] === undefined) {
+            // todo: should tell which remote resource has this problem
+            throw new Error(`remote field ${remoteField} does not exist in ${operation}`);
+        }
+        for (let arg of type.getFields()[remoteField].args) {
+            if (arg.name === argName) {
+                return arg.type;
+            }
+        }
+        throw new Error('todo: to be honest I dont know what to throw');
+    };
     let newArgs: ArgumentNode[] = [];
     for (let [k, v] of Object.entries(args)) {
         const value = astFromValue(v, typeOf(k, v));
-        console.log(v, typeof (v), value);
         newArgs.push({
             kind: 'Argument',
             name: { kind: 'Name', value: k },
-            //
             value: value
         });
     }
@@ -98,7 +96,7 @@ export interface Transport {
 export async function BatchedRemoteType(transport: Transport, operationName: OperationTypeNode, remoteField: string) {
 
     // load remote schema
-    const response2 = await transport.do(introspectionQuery);
+    const response2 = await transport.do(getIntrospectionQuery());
     const introspection: IntrospectionQuery = response2.data;
     // check if remoteField is in remote Operation root type.
     if (!validateRemoteField(introspection, operationName, remoteField)) {
@@ -134,8 +132,8 @@ export async function BatchedRemoteType(transport: Transport, operationName: Ope
 export async function RemoteResolver(transport: Transport, operation: OperationTypeNode, remoteField: string) {
 
     // load remote schema
-    const response2 = await transport.do(introspectionQuery);
-    const introspection: IntrospectionQuery = response2.data;
+    const response = await transport.do(getIntrospectionQuery());
+    const introspection: IntrospectionQuery = response.data;
     const remoteSchema = buildClientSchema(introspection);
 
     // check if remoteField is in remote Operation root type.
@@ -144,11 +142,10 @@ export async function RemoteResolver(transport: Transport, operation: OperationT
     }
 
     return async function (args, ctx, info: GraphQLResolveInfo) {
-        // todo: finish it
-        const types = FindArgumentTypeOf(operation, info.fieldName, introspection)
-        info = OverrideArgument(info, args, types);
+        // const types = FindArgumentTypeOf(operation, info.fieldName, introspection)
+        info = OverrideArgument(info, args, operation, remoteField, remoteSchema);
         const remoteQuery = CompileRemoteQuery(info, operation, remoteField);
-        console.log(remoteQuery);
+
         // do remote query
         const response = await transport.do(remoteQuery, info.variableValues)
         if (response.errors) {
@@ -188,18 +185,18 @@ function validateRemoteField(introspection: IntrospectionQuery, operationName: O
     return found;
 }
 
-function* FindArgumentTypeOf(typeName: string, fieldName: string, introspection: IntrospectionQuery): Iterable<IntrospectionInputValue> {
-    for (let type of introspection.__schema.types) {
-        if (type.name !== typeName) {
-            continue;
-        }
-        if (type.kind !== 'OBJECT') {
-            throw new Error("to be honest I don't know how to describe");   // todo a better error message
-        }
-        for (let field of type.fields) {
-            for (let arg of field.args) {
-                yield arg
-            }
-        }
-    }
-}
+// function* FindArgumentTypeOf(typeName: string, fieldName: string, introspection: IntrospectionQuery): Iterable<IntrospectionInputValue> {
+//     for (let type of introspection.__schema.types) {
+//         if (type.name !== typeName) {
+//             continue;
+//         }
+//         if (type.kind !== 'OBJECT') {
+//             throw new Error("to be honest I don't know how to describe");   // todo a better error message
+//         }
+//         for (let field of type.fields) {
+//             for (let arg of field.args) {
+//                 yield arg
+//             }
+//         }
+//     }
+// }

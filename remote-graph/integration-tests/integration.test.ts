@@ -59,7 +59,7 @@ describe('All', async () => {
                 return remoteResult;
             },
             china: async function (args, ctx, info) {
-                return await country(null, ctx, info);
+                return await country({code: 'CN'}, ctx, info);
             },
             Media: async function (args, ctx, info) {
                 return await Media({sort: ['SCORE']}, ctx, info);
@@ -77,14 +77,6 @@ describe('All', async () => {
                 china {
                     name
                 }
-                Media {
-                    id
-                    isAdult
-                    title {
-                        romaji
-                        native
-                    }
-                }
             }
             `,
             await ResolverFactory(),
@@ -92,27 +84,19 @@ describe('All', async () => {
             { "sort": "SCORE" }
         );
         strictEqual(res.errors, undefined);
-        // deepEqual(res.data,
-        //     {
-        //         "countries": [
-        //             { "name": "Argentina" },
-        //             { "name": "Bosnia and Herzegovina" },
-        //             { "name": "Burkina Faso" },
-        //             { "name": "China" },
-        //             { "name": "Suriname" }
-        //         ],
-        //         "china": {
-        //             "name": "China"
-        //         },
-        //         "Media": {
-        //             "id": 114105,
-        //             "isAdult": false,
-        //             "title": {
-        //                 "romaji": "Wang Gu Shen Hua Zhi Tian Xuan Zhe",
-        //                 "native": "望古神话之天选者"
-        //             }
-        //         }
-        //     }
-        // )
+        deepEqual(res.data,
+            {
+                "countries": [
+                    { "name": "Argentina" },
+                    { "name": "Bosnia and Herzegovina" },
+                    { "name": "Burkina Faso" },
+                    { "name": "China" },
+                    { "name": "Suriname" }
+                ],
+                "china": {
+                    "name": "China"
+                },
+            }
+        )
     });
 });
