@@ -14,7 +14,8 @@ import {
     GraphQLNonNull,
     GraphQLFloat,
     GraphQLInputType,
-    GraphQLList
+    GraphQLList,
+    IntrospectionInputValue
 } from "graphql";
 export { CompileRemoteQueries } from './BatchCompile';
 import { CompileRemoteQueries } from './BatchCompile';
@@ -35,8 +36,8 @@ export function FilterArgument(info: GraphQLResolveInfo, args: any): GraphQLReso
     return newInfo;
 }
 
-export function OverrideArgument(info: GraphQLResolveInfo, args: any, typeInformation: IntrospectionQuery): GraphQLResolveInfo {
-    if(args === undefined || args === null) {
+export function OverrideArgument(info: GraphQLResolveInfo, args: any, types: Iterable<IntrospectionInputValue>): GraphQLResolveInfo {
+    if (args === undefined || args === null) {
         return info;
     }
     // function typeOf(v): GraphQLInputType {
@@ -58,16 +59,18 @@ export function OverrideArgument(info: GraphQLResolveInfo, args: any, typeInform
     //     return undefined;
     // }
     function typeOf(argName: string, value: any) {
-        // todo: full implementation
-        
-        typeInformation.__schema.types // todo: how should I do it?
-
-        return GraphQLEnumType;
+        // todo: how to convert IntrospectionInputTypeRef to GraphQLInputType?
+        for(let type of types) {
+            if(type.name === argName) {
+                return type.type;
+            }
+        }
+        throw new Error('what?');
     };
     let newArgs: ArgumentNode[] = [];
     for (let [k, v] of Object.entries(args)) {
         const value = astFromValue(v, typeOf(k, v));
-        console.log(v, typeof(v), value);
+        console.log(v, typeof (v), value);
         newArgs.push({
             kind: 'Argument',
             name: { kind: 'Name', value: k },
@@ -134,7 +137,9 @@ export async function RemoteResolver(transport: Transport, operation: OperationT
     }
 
     return async function (args, ctx, info: GraphQLResolveInfo) {
-        info = OverrideArgument(info, args);
+        // todo: finish it
+        const types = FindArgumentTypeOf(operation, info.fieldName, introspection)
+        info = OverrideArgument(info, args, types);
         const remoteQuery = CompileRemoteQuery(info, operation, remoteField);
         console.log(remoteQuery);
         // do remote query
@@ -174,4 +179,20 @@ function validateRemoteField(introspection: IntrospectionQuery, operationName: O
         }
     }
     return found;
+}
+
+function* FindArgumentTypeOf(typeName: string, fieldName: string, introspection: IntrospectionQuery): Iterable<IntrospectionInputValue> {
+    for (let type of introspection.__schema.types) {
+        if (type.name !== typeName) {
+            continue;
+        }
+        if (type.kind !== 'OBJECT') {
+            throw new Error("to be honest I don't know how to describe");   // todo a better error message
+        }
+        for (let field of type.fields) {
+            for (let arg of field.args) {
+                yield arg
+            }
+        }
+    }
 }
