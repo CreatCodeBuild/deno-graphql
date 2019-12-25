@@ -8,24 +8,16 @@ describe('All', async () => {
     type Query {
         countries(byName: String): [Country]
         china: Country
-        Media: Media
+        country(code: String): Country
     }
     type Country {
         name: String
+        continent: Continent
     }
-
-    enum MediaSort {
-        SCORE
-        POPULARITY
-    }
-    type Media {
-        id: Int
-        isAdult: Boolean
-        title: MediaTitle
-    }
-    type MediaTitle {
-        romaji: String
-        native: String
+    type Continent {
+        code: String
+        name: String
+        countries: [Country]
     }
     `;
 
@@ -43,11 +35,6 @@ describe('All', async () => {
             `query`,
             `country`);
 
-        const Media = await RemoteResolver(
-            HTTP('https://graphql.anilist.co/'),
-            `query`,
-            `Media`);
-
         return {
             countries: async function (args, ctx, info) {
                 const remoteResult = await countries(null, ctx, FilterArgument(info, {}));
@@ -59,11 +46,9 @@ describe('All', async () => {
                 return remoteResult;
             },
             china: async function (args, ctx, info) {
-                return await country({code: 'CN'}, ctx, info);
+                return await country({ code: 'CN' }, ctx, info);
             },
-            Media: async function (args, ctx, info) {
-                return await Media({sort: ['SCORE']}, ctx, info);
-            }
+            country: country,
         };
     }
 
@@ -75,7 +60,21 @@ describe('All', async () => {
                     name
                 }
                 china {
-                    name
+                    name2: name
+                }
+                china2: china {
+                    continent {
+                        name2: name
+                    }
+                }
+                country1: country(code: "US") {
+                    name1: name
+                    continent {
+                        name
+                    }
+                }
+                country2: country(code: "CN") {
+                    name2: name
                 }
             }
             `,
@@ -94,8 +93,22 @@ describe('All', async () => {
                     { "name": "Suriname" }
                 ],
                 "china": {
-                    "name": "China"
+                    "name2": "China",
                 },
+                "china2": {
+                    "continent": {
+                        "name2": "Asia"
+                    }
+                },
+                "country1": {
+                    "continent": {
+                        "name": "North America"
+                    },
+                    "name1": "United States"
+                },
+                "country2": {
+                    "name2": "China"
+                }
             }
         )
     });
