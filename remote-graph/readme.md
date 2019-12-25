@@ -1,11 +1,11 @@
 [中文](./readme-chinese.md)
 
 # GraphQL Remote Type
-`RemoteType` is a library that helps you to execute remote GraphQL resolvers in a remote schema as if they are local and is build on top of `graphql.js`.
+`remote-graph` is a library that helps you to execute remote GraphQL resolvers in a remote schema as if they are local and is build on top of [graphql-js](https://github.com/graphql/graphql-js).
 
-In contrast of Apollo Federation, it needs __zero modification__ of your local schema nor any modification of the remote schema.
+In contrast of [Apollo Federation](https://www.apollographql.com/docs/apollo-server/federation/introduction/), it needs __zero modification__ of your local schema nor any modification of the remote schema.
 
-As a byproduct, the __zero-modification__ principle enables you to merge 3rd party schema, which you have no control, into your schema. Therefore, your frontend or mobile clients can treat in-house schema and 3rd party schema as one unified API.
+As a byproduct, the __zero-modification__ principle enables you to merge 3rd party schemas, which you do not own, into your schema. Therefore, your frontend or mobile clients can treat in-house schema and 3rd party schemas as one unified API.
 
 ## Example
 The example below merges 3 public GraphQL schema into one. They are:
@@ -13,10 +13,10 @@ The example below merges 3 public GraphQL schema into one. They are:
 2. https://countries.trevorblades.com/
 3. https://graphql.anilist.co/
 
-First, you import several helper functions from `RemoteType.js`.
+First, you import several helper functions from `RemoteResolver.js`.
 ```js
 // Part 1
-import { RemoteType, MapArgument, Transport } from '../RemoteType'; // This Lib
+import { RemoteResolver, MapArgument, Transport } from '../RemoteResolver'; // This Lib
 import { HTTP } from '../Transport';                                // This Lib
 
 import { buildSchema, graphql } from 'graphql';
@@ -65,7 +65,7 @@ Third, define remote resolvers.
 // Part 3
 async function ResolverFactory() {
 
-    const viewers = await RemoteType(
+    const viewers = await RemoteResolver(
         HTTP(
             'https://graphql-explorer.githubapp.com/graphql/proxy',
             {
@@ -77,7 +77,7 @@ async function ResolverFactory() {
         `query`,
         `viewer`);
 ```
-`RemoteType(transport: Transport, operationName: string, remoteField: string)` constructs a resolver that will automatically resolve remote data.
+`RemoteResolver(transport: Transport, operationName: string, remoteField: string)` constructs a resolver that will automatically resolve remote data.
 
 `Transport` is an interface which locates the remote schema. You can implement a different transport if you don't use HTTP.
 
@@ -94,19 +94,19 @@ type ShoppingCart {
 ```js
 let resolvers = {
     user: {
-        shoppingCart: await RemoteType(HTTP('domain2.com/gql'), `query`, `getShoppingCartByUserId`)
+        shoppingCart: await RemoteResolver(HTTP('domain2.com/gql'), `query`, `getShoppingCartByUserId`)
     }
 }
 ```
 Now let's fill up other remote resolvers.
 ```js
 // Part 4
-    const countries = await RemoteType(
+    const countries = await RemoteResolver(
         HTTP('https://countries.trevorblades.com/'),
         `query`,
         `countries`);
 
-    const Media = await RemoteType(
+    const Media = await RemoteResolver(
         HTTP('https://graphql.anilist.co/'),
         'query',
         'Media'
@@ -128,13 +128,13 @@ Now let's fill up other remote resolvers.
     };
 }
 ```
-Here is another feature of `RemoteType`. In `https://countries.trevorblades.com/`, `query { countries {...} }` has no arguments. There is no way to filter output. You can modify your local schema to allow arguments for this field. That's why we defined
+Here is another feature of `RemoteResolver`. In `https://countries.trevorblades.com/`, `query { countries {...} }` has no arguments. There is no way to filter output. You can modify your local schema to allow arguments for this field. That's why we defined
 ```graphql
 type Query {
     countries(byName: String): [Country]    # https://countries.trevorblades.com/
 }
 ```
-We can do apply the arguments after we get data from remote. `RemoteType` allows you to have imperative fine control over your resolvers.
+We can do apply the arguments after we get data from remote. `RemoteResolver` allows you to have imperative fine control over your resolvers.
 ```js
 countries: async function (args, ctx, info) {
     const remoteResult = await countries(args, ctx, MapArgument(info, {}));
@@ -183,7 +183,7 @@ f();
 If you have a query `query { x y z }` where `x` and `y` belong to the same remote server, this lib will compile only 1 remote query that batches them together. Batching happens automatically and __zero-configuration__ is needed.
 
 ## Todo
-1. Full query language support. `RemoteType` does not support full GraphQL query language yet. For example, it does not support Fragments and Interface.
+1. Full query language support. `RemoteResolver` does not support full GraphQL query language yet. For example, it does not support Fragments and Interface.
 2. Add `@remote` directive to allow better ahead of time type checking, readability. An draft design is
 ```
 type Query {
