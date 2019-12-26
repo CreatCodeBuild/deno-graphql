@@ -1,6 +1,6 @@
 [中文](./readme-chinese.md)
 
-# GraphQL Remote Type
+# GraphQL Remote Resolver
 `remote-graph` is a library that helps you to execute remote GraphQL resolvers in a remote schema as if they are local and is build on top of [graphql-js](https://github.com/graphql/graphql-js).
 
 In contrast of [Apollo Federation](https://www.apollographql.com/docs/apollo-server/federation/introduction/), it needs __zero modification__ of your local schema nor any modification of the remote schema.
