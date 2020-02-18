@@ -26,9 +26,7 @@ class User {
 class Query {
     @field({
         args: {
-            id: {
-                type: GraphQLString
-            },
+            id: GraphQLString,
             name: {
                 type: GraphQLInt
             }

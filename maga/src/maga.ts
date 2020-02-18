@@ -1,27 +1,14 @@
-import { GraphQLObjectType, GraphQLString, GraphQLScalarType } from 'graphql';
+import {
+    GraphQLFieldConfig,
+    GraphQLFieldConfigArgumentMap,
+    GraphQLObjectType,
+    GraphQLOutputType,
+    GraphQLScalarType
+} from 'graphql';
 
 export class Maga {
 
 }
-
-type GraphQLFieldConfig = {
-    type: any // GraphQLOutputType;
-    args?: any // GraphQLFieldConfigArgumentMap;
-    //   resolve?: GraphQLFieldResolveFn;
-    //   deprecationReason?: string;
-    //   description?: ?string;
-}
-
-// type GraphQLArgumentConfig = {
-//   type: GraphQLInputType;
-//   defaultValue?: any;
-//   description?: ?string;
-// }
-
-// interface Field {
-//     args: any
-//     type
-// }
 
 export function schema(type: any) {
     return new GraphQLObjectType({
@@ -31,7 +18,7 @@ export function schema(type: any) {
     })
 }
 
-export function field(f: GraphQLFieldConfig) {
+export function field<TSource, TContext, TArgs>(f: GraphQLFieldConfig<TSource, TContext, TArgs>) {
 
     return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) { // this is the decorator
         // todo: at least I know the approach now
