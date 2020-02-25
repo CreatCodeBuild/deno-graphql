@@ -1,6 +1,7 @@
 {
     "compilerOptions": {
+        "lib": ["es6"],
         "experimentalDecorators": true,
-        "target": "ES6"
+        "target": "es2018"
     }
 }
