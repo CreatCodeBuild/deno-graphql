@@ -1,8 +1,8 @@
-import { chan } from './channel';
-import { deepStrictEqual } from 'assert';
+import { chan, select } from './channel';
+import { deepStrictEqual, equal } from 'assert';
 
 
-describe("", async () => {
+describe("Channel", async () => {
 
     it("can read in order", async () => {
         let c = chan<number>();
@@ -75,4 +75,45 @@ describe("", async () => {
         await t2;
     })
 
+});
+
+describe('select', async () => {
+    it("works", async () => {
+        let unblock = chan<null>();
+        unblock.close()
+        let sec1 = chan<null>();
+        setTimeout(async () => {
+            sec1.put(null);
+        }, 0);
+        let x = await select([
+            [sec1, async function () { return true }],
+            [unblock, async function () { return false }]
+        ])
+        equal(false, x)
+    })
+    it("returns in order", async () => {
+        let unblock = chan<null>();
+        unblock.close()
+        let sec1 = chan<null>();
+        sec1.put(null);
+        let x = await select([
+            [sec1, async function () { return true }],
+            [unblock, async function () { return false }]
+        ])
+        equal(true, x)
+    })
+
+    xit("favors channels with values ready to be received over closed channels", async () => {
+        // Currently does not support, but
+        // Is this even a good design decision?
+        let unblock = chan<null>();
+        unblock.close()
+        let sec1 = chan<null>();
+        sec1.put(null);
+        let x = await select([
+            [unblock, async function () { return false }],
+            [sec1, async function () { return true }],
+        ])
+        equal(true, x)
+    })
 });
