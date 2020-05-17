@@ -4,9 +4,7 @@ export class Channel<T> {
     private closed: boolean = false;
     private popActions: any[] = [];
     putActions: Array<{ resolver: Function, ele: T }> = [];
-    dataBuffer: T[] = [];
     mutex = Semaphore(1);
-    popLock = Semaphore(1);
     closeEvent = new EventEmitter();
 
 
