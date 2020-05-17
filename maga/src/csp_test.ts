@@ -9,22 +9,25 @@ describe("Channel", async () => {
         let task1 = async () => {
             let i = 0;
             while (1) {
+                console.log('put loop', i);
                 await c.put(++i);
+                console.log('put loop', i);
                 await c.put(++i);
             }
         }
         let task2 = async () => {
-            let data = [];
+            let data: (number|undefined)[] = [];
             let i = 0;
             while (i++ < 10) {
+                console.log('pre pop', data);
                 let x = await c.pop();
                 data.push(x);
             }
-            deepStrictEqual(data, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+            return data
         }
         let t1 = task1();
         let t2 = task2();
-        await t2;
+        deepStrictEqual(await t2, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     })
 
     it("supports iteration protocol", async () => {
@@ -37,7 +40,7 @@ describe("Channel", async () => {
             }
         }
         let task2 = async () => {
-            let data = [];
+            let data: (number|undefined)[] = [];
             let i = 0;
             for await (let x of c) {
                 i++
@@ -53,26 +56,67 @@ describe("Channel", async () => {
         await t2;
     })
 
-    it("closes", async () => {
+    it("closes always return undefined", async () => {
+        let c = chan<number>();
+        let task1 = async () => {
+            // await c.put(1);
+            // console.log('first put done');
+            // await c.put(2);
+            await c.close();
+            console.log('closed');
+        }
+        let task2 = async () => {
+            let data: (number|undefined)[] = [];
+            let x = await c.pop();
+            data.push(x);
+            x = await c.pop();
+            data.push(x);
+            x = await c.pop();
+            console.log('should pop undefined');
+            data.push(x);
+            return data;
+        }
+        let t2 = task2();
+        await task1();
+        deepStrictEqual(await t2, [undefined, undefined, undefined])
+    })
+
+    it("close works with put", async () => {
         let c = chan<number>();
         let task1 = async () => {
             await c.put(1);
-            await c.put(2);
-            c.close();
+            console.log('first put done');
+            // await c.put(2);
+            await c.close();
+            console.log('closed');
         }
         let task2 = async () => {
-            let data = [];
-            let i = 0;
-            for await (let x of c) {
-                i++
-                data.push(x);
-            }
-            deepStrictEqual(data, [1, 2])
+            let data: (number|undefined)[] = [];
+            let x = await c.pop();
+            data.push(x);
+            x = await c.pop();
+            data.push(x);
+            return data;
         }
         let t1 = task1();
         let t2 = task2();
         await t1;
-        await t2;
+        deepStrictEqual(await t2, [1, undefined])
+    })
+
+    it("close works with iterator", async () => {
+        let c = chan<number>();
+        await c.close();
+        let task2 = async () => {
+            let data: (number|undefined)[] = [];
+            for await (let x of c) {
+                data.push(x);
+            }
+            return data;
+        }
+
+        let t2 = task2();
+        deepStrictEqual(await t2, [])
     })
 
     it("can have concurrent pending put operations", async () => {
@@ -85,16 +129,18 @@ describe("Channel", async () => {
             c.close();
         }
         let task2 = async () => {
-            let data = [];
+            let data: (number|undefined)[] = [];
             for await (let x of c) {
                 data.push(x);
             }
-            deepStrictEqual(data, [1, 2])
+            return data;
         }
         let t1 = task1();
         let t2 = task2();
         await t1;
-        await t2;
+        let r = await t2;
+        console.log(r);
+        deepStrictEqual(r, [1, 2])
     })
 
 });
@@ -170,7 +216,7 @@ describe('select', async () => {
 describe('Semaphore', async () => {
     it('works', async () => {
         let s = Semaphore(2);
-        let tasks = [];
+        let tasks: Promise<any>[] = [];
         let time = new Date();
         for (let i = 0; i < 10; i++) {
             let t = s.run(async () => {
@@ -178,7 +224,7 @@ describe('Semaphore', async () => {
             })
             tasks.push(t);
         }
-        for(let t of tasks) {
+        for (let t of tasks) {
             await t;
         }
         // @ts-ignore

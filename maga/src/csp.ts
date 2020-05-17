@@ -2,49 +2,113 @@ import { EventEmitter } from "events";
 
 export class Channel<T> {
     private closed: boolean = false;
-    private popActions = [];
-    putActions = [];
-    // mutex = Mutex();
+    private popActions: any[] = [];
+    putActions: Array<{resolver: Function, ele: T}> = [];
+    dataBuffer: T[] = [];
+    mutex = Semaphore(1);
+    popLock = Semaphore(1);
+    closeEvent = new EventEmitter();
 
-    put(ele: T) {
 
+    put(ele: T): Promise<void> {
         if (this.closed) {
             throw new Error('can not put to a closed channel');
         }
-        // if no pop action awaiting
-        if (this.popActions.length === 0) {
-            if (this.putActions.length >= 1) {
-                throw new Error('put: all putters asleep');
-            }
-            return new Promise((resolve) => {
-                this.putActions.push([resolve, ele]);
-            })
-        } else {
-            return new Promise((resolve) => {
-                let onPop = this.popActions.shift();
-                onPop(ele);
-            });
-        }
 
+        // if no pop action awaiting
+        return this.mutex.lock()
+            .then(() => {
+                console.log('putter', this.putActions, this.popActions);
+                if (this.popActions.length === 0) {
+                    if (this.putActions.length >= 1) {
+                        throw new Error('put: all putters asleep');
+                    }
+                    return new Promise((resolve) => {
+                        console.log('pending put');
+                        this.putActions.push({resolver: resolve, ele});
+                    })
+                } else {
+                    return new Promise((resolve) => {
+                        console.log('on Pop');
+                        let onPop = this.popActions.shift();
+                        onPop(ele);
+                        resolve();
+                    });
+                }
+            })
+            .then(() => {
+                console.log('put done', ele);
+                return this.mutex.unlock();
+            })
     }
 
-    pop(): Promise<T> {
-        if (this.closed) {
-            return new Promise((resolve) => resolve(undefined));
+    async pop(): Promise<T | undefined> {
+        // console.log('popper');
+        // if (this.closed) {
+        //     console.log('popper: channel closed 1');
+        //     // return new Promise((resolve) => {
+        //     //     console.log('popper: channel closed 2');
+        //     //     resolve(undefined)
+        //     // });
+        //     return undefined;
+        // }
+
+        // console.log('poppers', this.putActions, this.popActions);
+        // if (this.putActions.length === 0) {
+        //     return new Promise((resolve, reject) => {
+        //         if (this.popActions.length >= 1) {
+        //             throw new Error('pop: all poppers asleep');
+        //         }
+        //         console.log('pending pop');
+        //         this.closeEvent.once('', () => {
+        //             // console.log('pending pop');
+        //             resolve("xxx");
+        //         })
+        //         this.popActions.push(resolve);
+        //     })
+        // } else {
+        //     return new Promise((resolve) => {
+        //         let [onPut, ele] = this.putActions.shift();
+        //         console.log('onPut');
+        //         onPut();
+        //         resolve(ele);
+        //     });
+        // }
+        let next = this.next();
+        if(next instanceof Promise) {
+            return (await next).value;
         }
-        // console.log(this.putActions, this.popActions);
+        return next.value;
+    }
+
+    next(): Promise<{value: T, done: false} | {value: undefined, done: true}> | {value: undefined, done: true} {
+        console.log('popper');
+        if (this.closed) {
+            return {value: undefined, done: true};
+        }
+
+        console.log('poppers', this.putActions, this.popActions);
         if (this.putActions.length === 0) {
             return new Promise((resolve, reject) => {
                 if (this.popActions.length >= 1) {
                     throw new Error('pop: all poppers asleep');
                 }
+                this.closeEvent.once('', () => {
+                    // console.log('pending pop');
+                    resolve({value: undefined, done: true});
+                })
                 this.popActions.push(resolve);
             })
         } else {
             return new Promise((resolve) => {
-                let [onPut, ele] = this.putActions.shift();
-                onPut();
-                resolve(ele);
+                let putAction = this.putActions.shift();
+                if(putAction === undefined) {
+                    throw new Error('unreachable');
+                }
+                let {resolver, ele} = putAction;
+                console.log('onPut');
+                resolver();
+                resolve({value: ele, done: false});
             });
         }
     }
@@ -52,17 +116,38 @@ export class Channel<T> {
     // put to a closed channel throws an error
     // pop from a closed channel returns undefined
     // close a closed channel throws an error
-    close() {
+    async close() {
         if (this.closed) {
             throw Error('can not close a channel twice');
         }
+        console.log('close: closing');
+        // this.put(undefined);
+        console.log('close: event');
+        this.closeEvent.emit('');
         this.closed = true;
+        console.log('close: closed');
     }
 
-    async*[Symbol.asyncIterator]() {
+    async *[Symbol.asyncIterator]() {
         while (!this.closed) {
-            yield await this.pop();
+            // console.log('iter 1');
+            // let result = this.pop();
+            // if (result instanceof Promise) {
+            //     console.log('iter 2-2');
+            //     let r = await result;
+            //     console.log('iter 2-2', r);
+            //     yield r;
+            // } else {
+            //     console.log('iter 2', result);
+            //     return result;
+            // }
+            let next = await this.next();
+            if(next.done) {
+                return next.value
+            }
+            yield next.value;
         }
+        return undefined;
     }
 }
 
@@ -91,6 +176,7 @@ interface onSelect<T> {
 export async function select<T>(channels: [Channel<T>, onSelect<T>][]): Promise<any> {
     let promises = channels.map(([c, func]) => {
         return new Promise(async (resolve) => {
+            // @ts-ignore
             resolve(await func(await c.pop()));
         })
     })
@@ -124,14 +210,18 @@ export function Semaphore(size: number) {
     }
 
     async function unlock() {
+        console.log('unlock');
         pending--;
         unlocker.emit('')
     }
 
+    type AsyncFunction = () => Promise<any>;
     return {
-        async run(f) {
+        async run(f: AsyncFunction) {
             await lock();
+            console.log('after lock');
             let r = await f();
+            console.log('pre unlock');
             await unlock();
             return r;
         },
