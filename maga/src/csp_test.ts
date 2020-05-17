@@ -9,9 +9,7 @@ describe("Channel", async () => {
         let task1 = async () => {
             let i = 0;
             while (1) {
-                console.log('put loop', i);
                 await c.put(++i);
-                console.log('put loop', i);
                 await c.put(++i);
             }
         }
@@ -19,7 +17,6 @@ describe("Channel", async () => {
             let data: (number|undefined)[] = [];
             let i = 0;
             while (i++ < 10) {
-                console.log('pre pop', data);
                 let x = await c.pop();
                 data.push(x);
             }
@@ -59,11 +56,7 @@ describe("Channel", async () => {
     it("closes always return undefined", async () => {
         let c = chan<number>();
         let task1 = async () => {
-            // await c.put(1);
-            // console.log('first put done');
-            // await c.put(2);
             await c.close();
-            console.log('closed');
         }
         let task2 = async () => {
             let data: (number|undefined)[] = [];
@@ -72,7 +65,6 @@ describe("Channel", async () => {
             x = await c.pop();
             data.push(x);
             x = await c.pop();
-            console.log('should pop undefined');
             data.push(x);
             return data;
         }
@@ -85,10 +77,7 @@ describe("Channel", async () => {
         let c = chan<number>();
         let task1 = async () => {
             await c.put(1);
-            console.log('first put done');
-            // await c.put(2);
             await c.close();
-            console.log('closed');
         }
         let task2 = async () => {
             let data: (number|undefined)[] = [];
@@ -139,7 +128,6 @@ describe("Channel", async () => {
         let t2 = task2();
         await t1;
         let r = await t2;
-        console.log(r);
         deepStrictEqual(r, [1, 2])
     })
 

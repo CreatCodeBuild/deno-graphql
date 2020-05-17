@@ -3,7 +3,7 @@ import { EventEmitter } from "events";
 export class Channel<T> {
     private closed: boolean = false;
     private popActions: any[] = [];
-    putActions: Array<{resolver: Function, ele: T}> = [];
+    putActions: Array<{ resolver: Function, ele: T }> = [];
     dataBuffer: T[] = [];
     mutex = Semaphore(1);
     popLock = Semaphore(1);
@@ -18,97 +18,60 @@ export class Channel<T> {
         // if no pop action awaiting
         return this.mutex.lock()
             .then(() => {
-                console.log('putter', this.putActions, this.popActions);
+                // console.log('putter', this.putActions, this.popActions);
                 if (this.popActions.length === 0) {
                     if (this.putActions.length >= 1) {
                         throw new Error('put: all putters asleep');
                     }
                     return new Promise((resolve) => {
-                        console.log('pending put');
-                        this.putActions.push({resolver: resolve, ele});
+                        this.putActions.push({ resolver: resolve, ele });
                     })
                 } else {
                     return new Promise((resolve) => {
-                        console.log('on Pop');
                         let onPop = this.popActions.shift();
-                        onPop(ele);
+                        onPop({value: ele, done: false});
                         resolve();
                     });
                 }
             })
             .then(() => {
-                console.log('put done', ele);
                 return this.mutex.unlock();
             })
     }
 
     async pop(): Promise<T | undefined> {
-        // console.log('popper');
-        // if (this.closed) {
-        //     console.log('popper: channel closed 1');
-        //     // return new Promise((resolve) => {
-        //     //     console.log('popper: channel closed 2');
-        //     //     resolve(undefined)
-        //     // });
-        //     return undefined;
-        // }
-
-        // console.log('poppers', this.putActions, this.popActions);
-        // if (this.putActions.length === 0) {
-        //     return new Promise((resolve, reject) => {
-        //         if (this.popActions.length >= 1) {
-        //             throw new Error('pop: all poppers asleep');
-        //         }
-        //         console.log('pending pop');
-        //         this.closeEvent.once('', () => {
-        //             // console.log('pending pop');
-        //             resolve("xxx");
-        //         })
-        //         this.popActions.push(resolve);
-        //     })
-        // } else {
-        //     return new Promise((resolve) => {
-        //         let [onPut, ele] = this.putActions.shift();
-        //         console.log('onPut');
-        //         onPut();
-        //         resolve(ele);
-        //     });
-        // }
         let next = this.next();
-        if(next instanceof Promise) {
+        if (next instanceof Promise) {
             return (await next).value;
         }
         return next.value;
     }
 
-    next(): Promise<{value: T, done: false} | {value: undefined, done: true}> | {value: undefined, done: true} {
-        console.log('popper');
+    next(): Promise<{ value: T, done: false } | { value: undefined, done: true }> | { value: undefined, done: true } {
         if (this.closed) {
-            return {value: undefined, done: true};
+            return { value: undefined, done: true };
         }
 
-        console.log('poppers', this.putActions, this.popActions);
+        // console.log('poppers', this.putActions, this.popActions);
         if (this.putActions.length === 0) {
             return new Promise((resolve, reject) => {
                 if (this.popActions.length >= 1) {
                     throw new Error('pop: all poppers asleep');
                 }
                 this.closeEvent.once('', () => {
-                    // console.log('pending pop');
-                    resolve({value: undefined, done: true});
+                    resolve({ value: undefined, done: true });
                 })
                 this.popActions.push(resolve);
             })
         } else {
             return new Promise((resolve) => {
                 let putAction = this.putActions.shift();
-                if(putAction === undefined) {
+                if (putAction === undefined) {
                     throw new Error('unreachable');
                 }
-                let {resolver, ele} = putAction;
-                console.log('onPut');
+                let { resolver, ele } = putAction;
                 resolver();
-                resolve({value: ele, done: false});
+                resolve({ value: ele, done: false });
             });
         }
     }
@@ -120,32 +83,25 @@ export class Channel<T> {
         if (this.closed) {
             throw Error('can not close a channel twice');
         }
-        console.log('close: closing');
-        // this.put(undefined);
-        console.log('close: event');
         this.closeEvent.emit('');
         this.closed = true;
-        console.log('close: closed');
     }
 
     async *[Symbol.asyncIterator]() {
         while (!this.closed) {
-            // console.log('iter 1');
-            // let result = this.pop();
-            // if (result instanceof Promise) {
-            //     console.log('iter 2-2');
-            //     let r = await result;
-            //     console.log('iter 2-2', r);
-            //     yield r;
-            // } else {
-            //     console.log('iter 2', result);
-            //     return result;
-            // }
-            let next = await this.next();
-            if(next.done) {
-                return next.value
+            let next = this.next();
+            if (next instanceof Promise) {
+                let r = (await next);
+                if(r.done) {
+                    return r.value;
+                }
+                yield r.value;
+            } else {
+                if(next.done) {
+                    return next.value;
+                }
+                yield next.value
             }
-            yield next.value;
         }
         return undefined;
     }
@@ -210,7 +166,7 @@ export function Semaphore(size: number) {
     }
 
     async function unlock() {
-        console.log('unlock');
+        // console.log('unlock');
         pending--;
         unlocker.emit('')
     }
@@ -219,9 +175,9 @@ export function Semaphore(size: number) {
     return {
         async run(f: AsyncFunction) {
             await lock();
-            console.log('after lock');
+            // console.log('after lock');
             let r = await f();
-            console.log('pre unlock');
+            // console.log('pre unlock');
             await unlock();
             return r;
         },
