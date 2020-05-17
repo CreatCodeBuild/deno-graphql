@@ -1,21 +1,20 @@
-import * as Promise from 'bluebird';
-Promise.config({
-    cancellation: true
-})
+import { EventEmitter } from "events";
 
 export class Channel<T> {
     private closed: boolean = false;
     private popActions = [];
     putActions = [];
+    // mutex = Mutex();
 
     put(ele: T) {
+
         if (this.closed) {
             throw new Error('can not put to a closed channel');
         }
         // if no pop action awaiting
         if (this.popActions.length === 0) {
             if (this.putActions.length >= 1) {
-                throw new Error('put: all poppers asleep');
+                throw new Error('put: all putters asleep');
             }
             return new Promise((resolve) => {
                 this.putActions.push([resolve, ele]);
@@ -24,30 +23,29 @@ export class Channel<T> {
             return new Promise((resolve) => {
                 let onPop = this.popActions.shift();
                 onPop(ele);
-                resolve()
             });
         }
+
     }
 
     pop(): Promise<T> {
         if (this.closed) {
             return new Promise((resolve) => resolve(undefined));
         }
-        console.log(this.putActions, this.popActions);
+        // console.log(this.putActions, this.popActions);
         if (this.putActions.length === 0) {
-            if (this.popActions.length >= 1) {
-                throw new Error('pop: all putters asleep');
-            }
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
+                if (this.popActions.length >= 1) {
+                    throw new Error('pop: all poppers asleep');
+                }
                 this.popActions.push(resolve);
             })
         } else {
             return new Promise((resolve) => {
                 let [onPut, ele] = this.putActions.shift();
                 onPut();
-                resolve(ele)
+                resolve(ele);
             });
-            // return ele;
         }
     }
 
@@ -89,6 +87,7 @@ interface onSelect<T> {
 // Generator functions can be used as coroutines but it involves more syntax.
 // Anyway, this is what we get now.
 //
+// https://stackoverflow.com/questions/37021194/how-are-golang-select-statements-implemented
 export async function select<T>(channels: [Channel<T>, onSelect<T>][]): Promise<any> {
     let promises = channels.map(([c, func]) => {
         return new Promise(async (resolve) => {
@@ -96,42 +95,47 @@ export async function select<T>(channels: [Channel<T>, onSelect<T>][]): Promise<
         })
     })
     let ret = await Promise.race(promises);
-    for (let p of promises) {
-        p.cancel();
-        // console.log(p);
-    }
     return ret;
-
-
-    // let t = task(async function() {
-    //     await 1
-    //     await 2
-    //     await 3
-    //     return 4
-    // })
-
-    // await t.start()
-
-    // await t.cancel()
 }
 
-// class Task<F extends Function> {
+export function Semaphore(size: number) {
+    let pending = 0;
+    let unlocker = new EventEmitter();
 
-//     f: F
+    function onEnterLock(resolve) {
+        if (pending < size) {
+            pending++;
+            resolve();
+        } else {
+            listen(resolve);
+        }
+    }
 
-//     constructor(f) {
-//         this.f = f;
-//     }
+    function listen(resolve) {
+        unlocker.once('', () => {
+            onEnterLock(resolve);
+        })
+    }
 
-//     async start() {
-//         return this.f();
-//     }
+    function lock() {
+        return new Promise((resolve) => {
+            onEnterLock(resolve);
+        })
+    }
 
-//     async cancel() {
+    async function unlock() {
+        pending--;
+        unlocker.emit('')
+    }
 
-//     }
-// }
-
-// function task(f) {
-//     return new Task(f);
-// }
+    return {
+        async run(f) {
+            await lock();
+            let r = await f();
+            await unlock();
+            return r;
+        },
+        lock,
+        unlock
+    }
+}

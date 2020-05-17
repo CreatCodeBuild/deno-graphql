@@ -1,4 +1,4 @@
-import { chan, select } from './channel';
+import { chan, select, Semaphore } from './csp'
 import { deepStrictEqual, equal } from 'assert';
 
 
@@ -75,7 +75,35 @@ describe("Channel", async () => {
         await t2;
     })
 
+    it("can have concurrent pending put operations", async () => {
+        let c = chan<number>();
+        let task1 = async () => {
+            let p1 = c.put(1);
+            let p2 = c.put(2);
+            await p1;
+            await p2;
+            c.close();
+        }
+        let task2 = async () => {
+            let data = [];
+            for await (let x of c) {
+                data.push(x);
+            }
+            deepStrictEqual(data, [1, 2])
+        }
+        let t1 = task1();
+        let t2 = task2();
+        await t1;
+        await t2;
+    })
+
 });
+
+function delay(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms)
+    })
+}
 
 describe('select', async () => {
     it("works", async () => {
@@ -102,6 +130,27 @@ describe('select', async () => {
         ])
         equal(true, x)
     })
+    xit("can pop from unselected channels", async () => {
+        let unblock = chan<null>();
+        unblock.close()
+        let sec1 = chan<null>();
+        setTimeout(async () => {
+            sec1.put(null);
+        }, 100);
+        let x = await select([
+            [unblock, async function () {
+                return false
+            }],
+            [sec1, async function () {
+                await delay(100);
+                console.log('123');
+                return true
+            }]
+        ])
+        // sec1.put(null);
+        equal(false, x)
+        // equal(null, await sec1.pop())
+    })
 
     xit("favors channels with values ready to be received over closed channels", async () => {
         // Currently does not support, but
@@ -115,5 +164,27 @@ describe('select', async () => {
             [sec1, async function () { return true }],
         ])
         equal(true, x)
+    })
+});
+
+describe('Semaphore', async () => {
+    it('works', async () => {
+        let s = Semaphore(2);
+        let tasks = [];
+        let time = new Date();
+        for (let i = 0; i < 10; i++) {
+            let t = s.run(async () => {
+                await delay(100)
+            })
+            tasks.push(t);
+        }
+        for(let t of tasks) {
+            await t;
+        }
+        // @ts-ignore
+        let timeSpend = new Date() - time;
+        // 10 tasks, 2 concurrency, 100 ms each
+        // 500 ms total
+        equal(520 > timeSpend && timeSpend >= 500, true)
     })
 });
