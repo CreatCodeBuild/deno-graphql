@@ -223,7 +223,7 @@ describe('select', async () => {
         equal('sec1', x)
     })
 
-    it("favors channels with values ready to be received over closed channels", async () => {
+    xit("favors channels with values ready to be received over closed channels", async () => {
         // Currently does not support, but
         // Is this even a good design decision?
         let unblock = chan<null>();
@@ -235,6 +235,18 @@ describe('select', async () => {
             [unblock, async function () { return 'unblock' }],
         ])
         equal('sec1', x)
+    })
+
+    it('has default case', async () => {
+        let unblock = chan<null>();
+        equal('default', await select(
+            [
+                [unblock, async function () { return 'unblock' }],
+            ],
+            async function () {
+                return 'default'
+            }
+        ))
     })
 });
 

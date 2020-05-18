@@ -133,29 +133,28 @@ interface onSelect<T> {
     (ele: T | undefined): Promise<any>
 }
 
-// Warning: The current implementation can't cancel receive/pop operations
-// on other channels because there isn't an elegant way of cancelling promise
-// in JS yet.
-//
-// From a design perspective, a promise or a future should never be cancelled.
-// It should be immutable once born since by definition, it's an observation of a guarantee.
-// But, async operations of a coroutine should be cancellable.
-//
-// I consider it a bad design to use the async function as a syntax sugar for promises
-// in JavaScript because we now don't have a clean syntax to express coroutines in JS.
-// Generator functions can be used as coroutines but it involves more syntax.
-// Anyway, this is what we get now.
-//
-// https://stackoverflow.com/questions/37021194/how-are-golang-select-statements-implemented
-export async function select<T>(channels: [Channel<T>, onSelect<T>][]): Promise<any> {
-    let promises = channels.map(([c, func], i) => {
-        return c.ready(i);
-    })
-    let ret = await Promise.race(promises);
-    let ele = await channels[ret][0].pop();
-    return await channels[ret][1](ele);
+interface DefaultCase<T> {
+    (): Promise<T>
 }
 
+// https://stackoverflow.com/questions/37021194/how-are-golang-select-statements-implemented
+export async function select<T>(channels: [Channel<T>, onSelect<T>][], defaultCase?: DefaultCase<T>): Promise<any> {
+    let promises: Promise<number>[] = channels.map(([c, func], i) => {
+        return c.ready(i);
+    })
+    if (defaultCase) {
+        promises = promises.concat([Promise.resolve(promises.length)])
+    }
+    let i = await Promise.race(promises);
+    if (defaultCase && i === promises.length - 1) {
+        return await defaultCase();
+    }
+    let ele = await channels[i][0].pop();
+    return await channels[i][1](ele);
+}
+
+// This is a semaphore implementation that depends on a event emitter.
+// If my channel implementation is correct, one should easily implement a semaphore out of a channel.
 // export function Semaphore(size: number) {
 //     let pending = 0;
 //     let unlocker = new EventEmitter();
