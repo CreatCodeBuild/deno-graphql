@@ -53,7 +53,7 @@ describe("Channel", async () => {
         await t2;
     })
 
-    it("closes always return undefined", async () => {
+    it("close always returns undefined", async () => {
         let c = chan<number>();
         let task1 = async () => {
             await c.close();
@@ -95,7 +95,12 @@ describe("Channel", async () => {
 
     it("close works with iterator", async () => {
         let c = chan<number>();
-        await c.close();
+        let t1 = async () => {
+            await c.put(1);
+            await c.put(2);
+            await c.close();
+        }
+        t1();
         let task2 = async () => {
             let data: (number | undefined)[] = [];
             for await (let x of c) {
@@ -103,9 +108,9 @@ describe("Channel", async () => {
             }
             return data;
         }
-
         let t2 = task2();
-        deepStrictEqual(await t2, [])
+        await t1;
+        deepStrictEqual(await t2, [1, 2])
     })
 
     it("can have concurrent pending put operations", async () => {
@@ -168,6 +173,14 @@ function delay(ms) {
 
 describe('select', async () => {
     it("works", async () => {
+        let sec1 = chan<string>();
+        sec1.put('put after unblock');
+        let x = await select([
+            [sec1, async ele => ele],
+        ])
+        equal('put after unblock', x)
+    })
+    it("works 2", async () => {
         let unblock = chan<null>();
         unblock.close()
         let sec1 = chan<string>();
@@ -186,25 +199,35 @@ describe('select', async () => {
             unblock.close()
         }, 1000);
         let x = await select([
-            [unblock, async function () { return 'unblock' }],
+            [unblock, async function (ele) { return ele }],
         ])
-        equal('unblock', x)
+        equal(undefined, x)
+    })
+    it("can select from a channel that will be put later", async () => {
+        let unblock = chan<string>();
+        setTimeout(async () => {
+            unblock.put('put 1 sec later')
+        }, 1000);
+        let x = await select([
+            [unblock, async function (ele) { return ele }],
+        ])
+        equal('put 1 sec later', x)
     })
 
     it("can pop from unselected channels", async () => {
         let unblock = chan<null>();
         unblock.close()
         let sec1 = chan<string>();
-        setTimeout(async () => {
-            sec1.put('sec1');
-        }, 100);
+        let t1 = async () => {
+            await delay(1000)
+            await sec1.put('sec1');
+        }
+        t1();
         equal('unblock', await select([
             [unblock, async function () {
                 return 'unblock'
             }],
             [sec1, async function () {
-                await delay(100);
-                console.log('123');
                 return true
             }]
         ]))
@@ -213,14 +236,14 @@ describe('select', async () => {
 
     it("returns in order", async () => {
         let unblock = chan<null>();
-        unblock.close()
-        let sec1 = chan<null>();
-        sec1.close();
+        unblock.put(null)
+        let sec1 = chan<string>();
+        sec1.put('put after unblock');
         let x = await select([
-            [sec1, async function () { return 'sec1' }],
-            [unblock, async function () { return 'unblock' }]
+            [sec1, async ele => ele],
+            // [unblock, async () => 'unblock' ]
         ])
-        equal('sec1', x)
+        equal('put after unblock', x)
     })
 
     xit("favors channels with values ready to be received over closed channels", async () => {
@@ -247,6 +270,30 @@ describe('select', async () => {
                 return 'default'
             }
         ))
+    })
+    it("won't trigger default case if the normal case is ready", async () => {
+        let unblock = chan<null>();
+        unblock.close()
+        equal(await select(
+            [
+                [unblock, async function () { return 'unblock' }],
+            ],
+            async function () {
+                return 'default'
+            }
+        ), 'unblock')
+    })
+    it("won't trigger default case if the normal case is ready 2", async () => {
+        let unblock = chan<string>();
+        unblock.put('something')
+        equal(await select(
+            [
+                [unblock, async function (ele) { return ele }],
+            ],
+            async function () {
+                return 'default'
+            }
+        ), 'something')
     })
 });
 

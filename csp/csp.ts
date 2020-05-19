@@ -2,14 +2,21 @@ interface PopperOnResolver<T> {
     (ele: { value: undefined, done: true } | { value: T, done: false }): void
 }
 
-export class Channel<T> {
-    private closed: boolean = false;
+export interface Channel<T> {
+    put(ele: T): Promise<void>
+    pop(): Promise<T | undefined>
+    close()
+    closed(): boolean
+}
+
+export class UnbufferredChannel<T> implements Channel<T> {
+    private _closed: boolean = false;
     private popActions: PopperOnResolver<T>[] = [];
     putActions: Array<{ resolver: Function, ele: T }> = [];
     readyListener: { resolve: Function, i: number }[] = [];
 
     put(ele: T): Promise<void> {
-        if (this.closed) {
+        if (this._closed) {
             throw new Error('can not put to a closed channel');
         }
 
@@ -38,10 +45,10 @@ export class Channel<T> {
 
     }
 
-    // checks if a channel is ready to be ready but dooes not read it
+    // checks if a channel is ready to be read but dooes not read it
     // it returns only after the channel is ready
     async ready(i: number): Promise<number> {
-        if (this.popActions.length > 0 || this.closed) {
+        if (this.putActions.length > 0 || this._closed) {
             return i;
         } else {
             return new Promise((resolve) => {
@@ -59,7 +66,7 @@ export class Channel<T> {
     }
 
     next(): Promise<{ value: T, done: false } | { value: undefined, done: true }> | { value: undefined, done: true } {
-        if (this.closed) {
+        if (this._closed) {
             return { value: undefined, done: true };
         }
 
@@ -85,7 +92,7 @@ export class Channel<T> {
     // pop from a closed channel returns undefined
     // close a closed channel throws an error
     async close() {
-        if (this.closed) {
+        if (this._closed) {
             throw Error('can not close a channel twice');
         }
         // A closed channel always pops { value: undefined, done: true }
@@ -102,11 +109,15 @@ export class Channel<T> {
         for (let pendingPutter of this.putActions) {
             throw Error('unreachable');
         }
-        this.closed = true;
+        this._closed = true;
+    }
+
+    closed() {
+        return this._closed;
     }
 
     async *[Symbol.asyncIterator]() {
-        while (!this.closed) {
+        while (!this._closed) {
             let next = this.next();
             if (next instanceof Promise) {
                 let r = (await next);
@@ -126,7 +137,7 @@ export class Channel<T> {
 }
 
 export function chan<T>() {
-    return new Channel<T>();
+    return new UnbufferredChannel<T>();
 }
 
 interface onSelect<T> {
@@ -138,7 +149,7 @@ interface DefaultCase<T> {
 }
 
 // https://stackoverflow.com/questions/37021194/how-are-golang-select-statements-implemented
-export async function select<T>(channels: [Channel<T>, onSelect<T>][], defaultCase?: DefaultCase<T>): Promise<any> {
+export async function select<T>(channels: [UnbufferredChannel<T>, onSelect<T>][], defaultCase?: DefaultCase<T>): Promise<any> {
     let promises: Promise<number>[] = channels.map(([c, func], i) => {
         return c.ready(i);
     })
@@ -152,51 +163,3 @@ export async function select<T>(channels: [Channel<T>, onSelect<T>][], defaultCa
     let ele = await channels[i][0].pop();
     return await channels[i][1](ele);
 }
-
-// This is a semaphore implementation that depends on a event emitter.
-// If my channel implementation is correct, one should easily implement a semaphore out of a channel.
-// export function Semaphore(size: number) {
-//     let pending = 0;
-//     let unlocker = new EventEmitter();
-
-//     function onEnterLock(resolve) {
-//         if (pending < size) {
-//             pending++;
-//             resolve();
-//         } else {
-//             listen(resolve);
-//         }
-//     }
-
-//     function listen(resolve) {
-//         unlocker.once('', () => {
-//             onEnterLock(resolve);
-//         })
-//     }
-
-//     function lock() {
-//         return new Promise((resolve) => {
-//             onEnterLock(resolve);
-//         })
-//     }
-
-//     async function unlock() {
-//         // console.log('unlock');
-//         pending--;
-//         unlocker.emit('')
-//     }
-
-//     type AsyncFunction = () => Promise<any>;
-//     return {
-//         async run(f: AsyncFunction) {
-//             await lock();
-//             // console.log('after lock');
-//             let r = await f();
-//             // console.log('pre unlock');
-//             await unlock();
-//             return r;
-//         },
-//         lock,
-//         unlock
-//     }
-// }

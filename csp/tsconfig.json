@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+        "module": "CommonJS",
+        "target": "es2018",
+        "strictNullChecks": true,
+        "declaration": true,
+        "outDir": "dist"
+    },
+    "exclude": [
+        "*test*"
+    ]
+}
