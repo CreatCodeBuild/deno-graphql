@@ -9,7 +9,11 @@ export interface Channel<T> {
     closed(): boolean
 }
 
-export class UnbufferredChannel<T> implements Channel<T> {
+export interface SelectableChannel<T> extends Channel<T> {
+    ready(i: number): Promise<number>
+}
+
+export class UnbufferredChannel<T> implements SelectableChannel<T> {
     private _closed: boolean = false;
     private popActions: PopperOnResolver<T>[] = [];
     putActions: Array<{ resolver: Function, ele: T }> = [];
