@@ -4,7 +4,8 @@
         "target": "es2018",
         "strictNullChecks": true,
         "declaration": true,
-        "outDir": "dist"
+        "outDir": "dist",
+        "rootDir": "src"
     },
     "exclude": [
         "*test*"
