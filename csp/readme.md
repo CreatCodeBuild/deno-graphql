@@ -31,3 +31,8 @@ I am writing a new kind of GraphQL backend framework that focuses on distributed
 3. Go has native CSP so that I save energy (I'm only targeting JS and Go at the moment)
 
 None of the CSP implementations in JS meets my requirement so that I have to implement my own. It's faster to write my own than PR to other repos.
+
+## Inspirations
+1. [The Go Programming Language](https://golang.org/)  
+2. [Curio by David Beazley](https://github.com/dabeaz/curio)  
+3. [coro.async of Clojure](https://github.com/clojure/core.async) and [Rich Hickey's talk about it](https://www.youtube.com/watch?v=9HspeHGBg-Q)
