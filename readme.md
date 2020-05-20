@@ -2,8 +2,10 @@
 
 My GraphQL projects and ideas.
 
-## [CSP](./csp)
+## CSP
 A Communicating Sequential Process implementation in pure JavaScript with 0 external dependencies. Usable in Browser, Node and Deno.
+
+Moved to [CreatCodeBuild/csp](https://github.com/CreatCodeBuild/csp)
 
 ## [MAGA](./maga)
 A GraphQL Backend and Browser side framework that focuses on distributed development and subscription.
