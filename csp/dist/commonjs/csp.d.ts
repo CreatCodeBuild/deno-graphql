@@ -1,16 +1,22 @@
-export interface Channel<T> {
-    put(ele: T): Promise<void>;
+export interface PopChannel<T> {
     pop(): Promise<T | undefined>;
     close(): any;
     closed(): boolean;
 }
-export interface SelectableChannel<T> extends Channel<T> {
+export interface PutChannl<T> {
+    put(ele: T): Promise<void>;
+    close(): any;
+    closed(): boolean;
+}
+export interface Channel<T> extends PopChannel<T>, PutChannl<T> {
+}
+export interface SelectableChannel<T> extends PopChannel<T> {
     ready(i: number): Promise<number>;
 }
-export interface IterableChannel<T> extends Channel<T> {
+export interface IterableChannel<T> extends PopChannel<T> {
     [Symbol.asyncIterator]: AsyncIterator<T, T>;
 }
-export declare class UnbufferredChannel<T> implements SelectableChannel<T> {
+export declare class UnbufferredChannel<T> implements SelectableChannel<T>, PutChannl<T> {
     private _closed;
     private popActions;
     putActions: Array<{
