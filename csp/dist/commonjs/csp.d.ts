@@ -4,7 +4,13 @@ export interface Channel<T> {
     close(): any;
     closed(): boolean;
 }
-export declare class UnbufferredChannel<T> implements Channel<T> {
+export interface SelectableChannel<T> extends Channel<T> {
+    ready(i: number): Promise<number>;
+}
+export interface IterableChannel<T> extends Channel<T> {
+    [Symbol.asyncIterator]: AsyncIterator<T, T>;
+}
+export declare class UnbufferredChannel<T> implements SelectableChannel<T> {
     private _closed;
     private popActions;
     putActions: Array<{
@@ -30,7 +36,7 @@ export declare class UnbufferredChannel<T> implements Channel<T> {
     };
     close(): Promise<void>;
     closed(): boolean;
-    [Symbol.asyncIterator](): AsyncGenerator<T | undefined, undefined, unknown>;
+    [Symbol.asyncIterator](): this;
 }
 export declare function chan<T>(): UnbufferredChannel<T>;
 interface onSelect<T> {

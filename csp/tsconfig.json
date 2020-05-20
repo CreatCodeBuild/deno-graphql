@@ -4,10 +4,11 @@
         "target": "es2018",
         "strictNullChecks": true,
         "declaration": true,
-        "outDir": "dist",
+        "outDir": "dist/commonjs",
         "rootDir": "src"
     },
     "exclude": [
-        "*test*"
+        "**/*test*",
+        "dist"
     ]
 }

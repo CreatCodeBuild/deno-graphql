@@ -102,24 +102,8 @@ class UnbufferredChannel {
     closed() {
         return this._closed;
     }
-    async *[Symbol.asyncIterator]() {
-        while (!this._closed) {
-            let next = this.next();
-            if (next instanceof Promise) {
-                let r = (await next);
-                if (r.done) {
-                    return r.value;
-                }
-                yield r.value;
-            }
-            else {
-                if (next.done) {
-                    return next.value;
-                }
-                yield next.value;
-            }
-        }
-        return undefined;
+    [Symbol.asyncIterator]() {
+        return this;
     }
 }
 exports.UnbufferredChannel = UnbufferredChannel;

@@ -9,3 +9,4 @@ build: test compile
 compile:
 	rm -rf dist
 	$$(yarn bin)/tsc
+	$$(yarn bin)/tsc --module es6 --outDir dist/es
