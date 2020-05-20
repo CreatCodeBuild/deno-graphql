@@ -2,22 +2,29 @@ interface PopperOnResolver<T> {
     (ele: { value: undefined, done: true } | { value: T, done: false }): void
 }
 
-export interface Channel<T> {
-    put(ele: T): Promise<void>
+export interface PopChannel<T> {
     pop(): Promise<T | undefined>
     close()
     closed(): boolean
 }
 
-export interface SelectableChannel<T> extends Channel<T> {
+export interface PutChannl<T> {
+    put(ele: T): Promise<void>
+    close()
+    closed(): boolean 
+}
+
+export interface Channel<T> extends PopChannel<T>, PutChannl<T> {}
+
+export interface SelectableChannel<T> extends PopChannel<T> {
     ready(i: number): Promise<number>
 }
 
-export interface IterableChannel<T> extends Channel<T> {
+export interface IterableChannel<T> extends PopChannel<T> {
     [Symbol.asyncIterator]: AsyncIterator<T, T>
 }
 
-export class UnbufferredChannel<T> implements SelectableChannel<T> {
+export class UnbufferredChannel<T> implements SelectableChannel<T>, PutChannl<T> {
     private _closed: boolean = false;
     private popActions: PopperOnResolver<T>[] = [];
     putActions: Array<{ resolver: Function, ele: T }> = [];
