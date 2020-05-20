@@ -52,4 +52,5 @@ interface DefaultCase<T> {
     (): Promise<T>;
 }
 export declare function select<T>(channels: [UnbufferredChannel<T>, onSelect<T>][], defaultCase?: DefaultCase<T>): Promise<any>;
+export declare function sleep(ms: number): Promise<unknown>;
 export {};

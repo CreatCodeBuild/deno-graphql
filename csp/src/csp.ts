@@ -163,3 +163,9 @@ export async function select<T>(channels: [UnbufferredChannel<T>, onSelect<T>][]
     let ele = await channels[i][0].pop();
     return await channels[i][1](ele);
 }
+
+export function sleep(ms: number) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms)
+    })
+}

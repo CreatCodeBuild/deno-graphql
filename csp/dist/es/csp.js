@@ -121,3 +121,8 @@ export async function select(channels, defaultCase) {
     let ele = await channels[i][0].pop();
     return await channels[i][1](ele);
 }
+export function sleep(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.select = exports.chan = exports.UnbufferredChannel = void 0;
+exports.sleep = exports.select = exports.chan = exports.UnbufferredChannel = void 0;
 class UnbufferredChannel {
     constructor() {
         this._closed = false;
@@ -127,3 +127,9 @@ async function select(channels, defaultCase) {
     return await channels[i][1](ele);
 }
 exports.select = select;
+function sleep(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}
+exports.sleep = sleep;
