@@ -8,5 +8,5 @@ A Communicating Sequential Process implementation in pure JavaScript with 0 exte
 ## [Remote Graph](./remote-graph)
 A lib that lets you execute remote resovlers in a remote schema as if they are local. Useful for service oriented architecture.
 
-## Deno GraphQL(./deno-graphql-port)
+## [Deno GraphQL](./deno-graphql-port)
 Porting `graphql-js` to Deno runtime.
